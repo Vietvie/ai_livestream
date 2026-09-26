@@ -17,10 +17,19 @@ batch_size: 16
 customvideo_config: ''
 
 # -------- TTS ----------------------------------------------------------
-tts: edgetts                   # edgetts / gpt-sovits / cosyvoice / fishtts / tencent / doubao / indextts2 / azuretts / qwentts
+tts: omnivoice                 # offline Vietnamese TTS; edgetts and sapi remain available
 REF_FILE: 'vi-VN-HoaiMyNeural' # Vietnamese EdgeTTS voice; or reference audio/model id
 REF_TEXT: ''                   # reference text for voice cloning (English or Chinese)
 TTS_SERVER: ''                 # TTS server URL, no trailing slash
+omnivoice_model: 'splendor1811/omnivoice-vietnamese'
+omnivoice_device: 'auto'       # auto selects cuda:0 on the Windows GPU VPS
+omnivoice_dtype: 'float16'
+omnivoice_language: 'vietnamese'
+omnivoice_instruct: 'female, young adult, moderate pitch'
+omnivoice_ref_audio: ''        # optional 3-10 second clean WAV
+omnivoice_ref_text: ''         # exact transcript when ref_audio is used
+omnivoice_speed: 1.0
+omnivoice_num_step: 16         # 16 is a good realtime/quality starting point
 
 # -------- LLM ----------------------------------------------------------
 llm_provider: openai           # openai / dashscope / orcarouter

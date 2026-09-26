@@ -32,9 +32,10 @@ Không có comment -> bộ kịch bản -> TTS/clip hành động -> avatar -> O
 Mặc định `openai.provider: dummy`, hệ thống tạo lời mẫu cục bộ và **không cần
 OpenAI API key**. Chế độ này dùng để ưu tiên kiểm tra TTS, lip-sync, ghi MP4 và
 đường truyền OBS. Khi muốn bật LLM thật, đổi `provider: openai` rồi điền key.
-TTS mặc định là EdgeTTS với giọng nữ tiếng Việt `vi-VN-HoaiMyNeural`.
-Nếu VPS/datacenter bị Microsoft Edge TTS chặn, dùng `--tts sapi --REF_FILE ""`
-để kiểm thử hoàn toàn offline bằng giọng Windows đang cài trên VPS.
+TTS mặc định là OmniVoice chạy cục bộ bằng model tiếng Việt
+`splendor1811/omnivoice-vietnamese`. EdgeTTS vẫn có thể chọn bằng
+`--tts edgetts`; SAPI chỉ nên dùng để kiểm tra nhanh vì Windows VPS thường
+không cài sẵn giọng tiếng Việt.
 
 Sao chép `.env.example` thành `.env`, sau đó điền:
 
@@ -136,6 +137,56 @@ $env:PATH="$PWD\bin;$env:PATH"
 
 Script tạo `.venv`, cài PyTorch CUDA và chép FFmpeg cục bộ vào `bin`. Các lệnh
 Conda bên dưới chỉ là lựa chọn thay thế nếu máy đã có Conda.
+
+### Cài và thử OmniVoice tiếng Việt
+
+Sau khi `setup_windows.ps1` đã chạy thành công, cài backend TTS riêng:
+
+```powershell
+.\scripts\setup_omnivoice_windows.ps1
+Start-Process .\output\omnivoice-test.wav
+```
+
+Lần chạy đầu sẽ tải model từ Hugging Face và lâu hơn các lần sau. Script tạo
+`output\omnivoice-test.wav` để kiểm tra tiếng Việt trước khi nạp đồng thời
+Wav2Lip. Sau khi nghe file này đúng, chạy toàn bộ luồng:
+
+```powershell
+$env:PATH="$PWD\bin;$env:PATH"
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+python app.py `
+  --config config.yaml `
+  --transport null `
+  --model wav2lip `
+  --avatar_id host01 `
+  --batch_size 8 `
+  --max_session 1 `
+  --tts omnivoice
+```
+
+Ở terminal thứ hai, ghi một video lip-sync thử nghiệm:
+
+```powershell
+.\.venv\Scripts\python.exe tools\render_lipsync_video.py `
+  "Xin chào, đây là video thử nghiệm OmniVoice tiếng Việt." `
+  --output output\omnivoice-lipsync.mp4
+```
+
+Model được giữ trong VRAM để giảm độ trễ giữa các câu. Nếu thiếu VRAM, giảm
+`batch_size` của Wav2Lip xuống `4`; có thể giảm `omnivoice_num_step` xuống `8`
+để ưu tiên tốc độ. Không nên đặt OmniVoice chạy CPU cho livestream realtime.
+
+Muốn clone một giọng đã được phép sử dụng, chuẩn bị WAV sạch 3–10 giây và phần
+chép lời khớp chính xác rồi sửa:
+
+```yaml
+omnivoice_ref_audio: 'data/voices/host.wav'
+omnivoice_ref_text: 'Nội dung được nói chính xác trong đoạn âm thanh tham chiếu.'
+omnivoice_instruct: ''
+```
+
+Chỉ clone giọng khi có sự đồng ý của người sở hữu. Đồng thời cần kiểm tra giấy
+phép của checkpoint/dataset OmniVoice trước khi dùng cho hoạt động thương mại.
 
 Nếu máy chỉ có Python 3.14 và `py.exe` báo thiếu runtime 3.12, cài song song:
 

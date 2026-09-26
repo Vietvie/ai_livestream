@@ -72,11 +72,26 @@ def parse_args():
 
     # ─── TTS ───────────────────────────────────────────────────────────
     parser.add_argument('--tts', type=str, default='edgetts',
-                        help="tts plugin: edgetts/sapi/gpt-sovits/xtts/tencent/doubao/azuretts/qwentts/omnitts")
+                        help="tts plugin: edgetts/sapi/omnivoice/gpt-sovits/xtts/tencent/doubao/azuretts/qwentts/omnitts")
     parser.add_argument('--REF_FILE', type=str, default="vi-VN-HoaiMyNeural",
                         help="参考文件名或语音模型ID")
     parser.add_argument('--REF_TEXT', type=str, default=None)
     parser.add_argument('--TTS_SERVER', type=str, default='http://127.0.0.1:9880')
+    parser.add_argument('--omnivoice_model', type=str,
+                        default='splendor1811/omnivoice-vietnamese')
+    parser.add_argument('--omnivoice_device', type=str, default='auto',
+                        help='auto/cuda:0/cpu')
+    parser.add_argument('--omnivoice_dtype', type=str, default='float16',
+                        help='float16/bfloat16/float32')
+    parser.add_argument('--omnivoice_language', type=str, default='vietnamese')
+    parser.add_argument('--omnivoice_instruct', type=str,
+                        default='female, young adult, moderate pitch')
+    parser.add_argument('--omnivoice_ref_audio', type=str, default='',
+                        help='3-10 second WAV for voice cloning')
+    parser.add_argument('--omnivoice_ref_text', type=str, default='',
+                        help='exact transcript of omnivoice_ref_audio')
+    parser.add_argument('--omnivoice_speed', type=float, default=1.0)
+    parser.add_argument('--omnivoice_num_step', type=int, default=16)
 
     # ─── LLM ──────────────────────────────────────────────────────────
     parser.add_argument('--llm_provider', type=str, default='dashscope',
