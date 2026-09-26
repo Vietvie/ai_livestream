@@ -123,6 +123,18 @@ Cần đặt checkpoint `models/wav2lip.pth` và avatar trong
 
 Repo gốc đang dùng Python 3.12, PyTorch 2.9.1 và CUDA 12.8. Trong PowerShell:
 
+Không bắt buộc cài Conda. Nếu VPS đã có Python 3.12, chạy script tự động:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\setup_windows.ps1
+.\.venv\Scripts\Activate.ps1
+$env:PATH="$PWD\bin;$env:PATH"
+```
+
+Script tạo `.venv`, cài PyTorch CUDA và chép FFmpeg cục bộ vào `bin`. Các lệnh
+Conda bên dưới chỉ là lựa chọn thay thế nếu máy đã có Conda.
+
 Chạy SRS trên máy có Docker (thay IP public phù hợp):
 
 ```powershell

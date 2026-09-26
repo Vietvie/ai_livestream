@@ -1,5 +1,8 @@
 __pycache__/
 build/
+.venv/
+bin/
+output/
 *.egg-info/
 *.so
 *.mp4
