@@ -60,7 +60,8 @@ def main() -> int:
         run(
             [
                 sys.executable,
-                "avatars/wav2lip/genavatar.py",
+                "-m",
+                "avatars.wav2lip.genavatar",
                 "--video_path", str(normalized),
                 "--avatar_id", args.avatar_id,
                 "--img_size", "256",
@@ -71,7 +72,8 @@ def main() -> int:
         run(
             [
                 sys.executable,
-                "avatars/musetalk/genavatar.py",
+                "-m",
+                "avatars.musetalk.genavatar",
                 "--file", str(normalized),
                 "--avatar_id", args.avatar_id,
                 "--bbox_shift", str(args.bbox_shift),
