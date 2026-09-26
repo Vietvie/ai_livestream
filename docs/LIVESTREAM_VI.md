@@ -135,6 +135,13 @@ $env:PATH="$PWD\bin;$env:PATH"
 Script tạo `.venv`, cài PyTorch CUDA và chép FFmpeg cục bộ vào `bin`. Các lệnh
 Conda bên dưới chỉ là lựa chọn thay thế nếu máy đã có Conda.
 
+Nếu máy chỉ có Python 3.14 và `py.exe` báo thiếu runtime 3.12, cài song song:
+
+```powershell
+py install 3.12
+py -3.12 --version
+```
+
 Chạy SRS trên máy có Docker (thay IP public phù hợp):
 
 ```powershell

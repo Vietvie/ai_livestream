@@ -7,18 +7,18 @@ Set-Location (Join-Path $PSScriptRoot "..")
 
 function Find-Python312 {
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        & py -3.12 -c "import sys; assert sys.version_info >= (3, 12)" 2>$null
-        if ($LASTEXITCODE -eq 0) {
+        $InstalledPythons = (& py -0p 2>$null | Out-String)
+        if ($InstalledPythons -match "3\.12") {
             return @{ Exe = "py"; Args = @("-3.12") }
         }
     }
     if (Get-Command python -ErrorAction SilentlyContinue) {
-        & python -c "import sys; assert sys.version_info >= (3, 12)" 2>$null
-        if ($LASTEXITCODE -eq 0) {
+        $PythonVersion = (& python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null).Trim()
+        if ($PythonVersion -eq "3.12") {
             return @{ Exe = "python"; Args = @() }
         }
     }
-    throw "Python 3.12 was not found. Install it from python.org, enable Add Python to PATH, then reopen PowerShell."
+    throw "Python 3.12 was not found. Run: py install 3.12, then rerun this script."
 }
 
 $PythonCommand = Find-Python312
