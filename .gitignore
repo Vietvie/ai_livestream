@@ -25,6 +25,6 @@ pretrained
 .env
 workspace/log_ngp.txt
 .idea
-models/
+/models/
 *.log
 dist
