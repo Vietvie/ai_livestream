@@ -1,0 +1,13 @@
+# Install upstream requirements first, then this file.
+openai>=1.68.0
+PyYAML>=6.0
+requests>=2.31.0
+pytest>=8.0.0
+
+# Native RTMP output is an upstream C++ extension and must be built separately:
+# https://github.com/lipku/python_rtmpstream
+# For Windows, rtcpush -> SRS -> RTMP avoids compiling that extension.
+
+# Windows OBS virtual camera/audio route (optional)
+pyvirtualcam>=0.12.0; platform_system == "Windows"
+PyAudio>=0.2.14; platform_system == "Windows"

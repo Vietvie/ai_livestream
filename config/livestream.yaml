@@ -1,0 +1,42 @@
+# OpenAI is used only for the language model. Keep the key in .env, never here.
+openai:
+  # dummy = không gọi mạng/không cần API key; đổi thành openai khi sẵn sàng.
+  provider: dummy
+  model: gpt-4.1-mini
+  api_key_env: OPENAI_API_KEY
+  base_url: null
+  max_history_turns: 6
+  max_context_chars: 8000
+  system_prompt: >-
+    Bạn là tư vấn viên livestream thân thiện, trả lời bằng tiếng Việt tự nhiên,
+    ngắn gọn và dễ đọc thành lời. Chỉ dùng dữ liệu sản phẩm được cung cấp.
+    Nếu thiếu thông tin, hãy nói rõ và đề nghị nhân viên xác nhận. Không tự tạo
+    giá, khuyến mãi, tồn kho, công dụng y tế hoặc chính sách bảo hành. Khi khách
+    hỏi so sánh, hãy nêu tiêu chí và gợi ý theo nhu cầu thay vì khẳng định quá mức.
+
+catalog:
+  file: data/products.json
+  top_k: 5
+
+automation:
+  enabled: true
+  default_session_id: "0"
+  idle_seconds: 25
+  poll_seconds: 0.5
+  interrupt_idle_on_comment: true
+  script_file: data/scripts.yaml
+  shuffle: false
+
+api:
+  token_env: LIVESTREAM_API_TOKEN
+  # Chỉ bật true khi chạy nội bộ trên máy tin cậy.
+  allow_unauthenticated: false
+  protected_paths:
+    - /human
+    - /humanaudio
+    - /record
+    - /interrupt_talk
+    - /set_audiotype
+    - /api/admin
+    - /api/avatar
+    - /api/livestream

@@ -1,0 +1,19 @@
+scripts:
+  - id: welcome
+    text: >-
+      Xin chào mọi người đã đến với buổi livestream. Nếu bạn đang quan tâm sản
+      phẩm nào, hãy để lại tên sản phẩm và nhu cầu, mình sẽ tư vấn ngay nhé.
+  - id: ask-needs
+    text: >-
+      Để chọn đúng sản phẩm, bạn có thể cho mình biết nhu cầu sử dụng, ngân sách
+      dự kiến và điều bạn ưu tiên nhất không? Mình sẽ gợi ý thật ngắn gọn.
+  - id: reminder
+    text: >-
+      Giá, khuyến mãi và tồn kho có thể thay đổi theo thời điểm. Bạn cứ để lại câu
+      hỏi cụ thể, mình sẽ kiểm tra theo dữ liệu đang có trong hệ thống.
+  # mode: generate sẽ nhờ OpenAI viết lời mới dựa trên prompt trong text.
+  # audiotype có thể trỏ tới clip hành động trong data/custom_config.json.
+  # - id: generated-highlight
+  #   mode: generate
+  #   audiotype: 2
+  #   text: "Giới thiệu Sản phẩm mẫu A trong khoảng 3 câu, nhấn mạnh đúng dữ liệu catalog."

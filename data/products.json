@@ -1,0 +1,27 @@
+{
+  "products": [
+    {
+      "sku": "SP001",
+      "name": "Sản phẩm mẫu A",
+      "category": "Thay bằng ngành hàng của bạn",
+      "price_vnd": 299000,
+      "promotion": "Chưa cấu hình",
+      "stock_status": "Liên hệ để xác nhận",
+      "description": "Đây là dữ liệu mẫu. Hãy thay toàn bộ nội dung bằng dữ liệu sản phẩm thật.",
+      "features": [
+        "Tính năng mẫu 1",
+        "Tính năng mẫu 2"
+      ],
+      "suitable_for": [
+        "Nhu cầu mẫu"
+      ],
+      "warranty": "Chưa cấu hình",
+      "faq": [
+        {
+          "question": "Sản phẩm có sẵn không?",
+          "answer": "Vui lòng kiểm tra trạng thái tồn kho hiện tại trước khi xác nhận với khách."
+        }
+      ]
+    }
+  ]
+}
