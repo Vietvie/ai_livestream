@@ -4,7 +4,7 @@
 
 ```text
 Comment/API -> hàng đợi ưu tiên -> OpenAI Responses API -> TTS
-            -> Wav2Lip/MuseTalk -> RTMP hoặc virtual camera -> OBS
+            -> Wav2Lip/MuseTalk -> SRT/UDP/RTMP -> OBS
 
 Không có comment -> bộ kịch bản -> TTS/clip hành động -> avatar -> OBS
 ```
@@ -21,7 +21,8 @@ Không có comment -> bộ kịch bản -> TTS/clip hành động -> avatar -> O
 - Kịch bản có thể là lời cố định (`mode: direct`) hoặc prompt tạo lời mới
   (`mode: generate`). Có thể gắn `audiotype` để phát clip hành động đã chuẩn bị.
 - Xử lý video người dẫn quay sẵn thành avatar Wav2Lip/MuseTalk.
-- Xuất WebRTC, RTMP hoặc virtual camera; có thể ghi MP4 bằng API gốc LiveTalking.
+- Xuất SRT/UDP MPEG-TS, WebRTC, RTMP hoặc virtual camera; có thể ghi MP4 bằng
+  API gốc LiveTalking.
 - API điều khiển có Bearer token, phù hợp để bộ đọc comment TikTok/Facebook/
   YouTube ở tiến trình khác gọi vào.
 
@@ -271,9 +272,51 @@ cho IP cần điều khiển. RTMP và các cổng của RTMP server cũng cần
 hình triển khai. Không công khai `.env`, model, thư mục record hoặc API mà không
 có reverse proxy/TLS.
 
-### Ba cách đưa vào OBS
+### Đưa luồng sang OBS
 
-1. **OBS Media Source qua UDP (khuyến nghị khi OBS chạy cùng VPS Windows):**
+1. **SRT qua Internet (khuyến nghị cho Ubuntu xử lý và OBS ở máy khác):**
+   máy Ubuntu chạy SRT ở chế độ `listener`; OBS là `caller` chủ động kết nối tới
+   Ubuntu. Cách bố trí này chỉ cần mở một cổng UDP trên Ubuntu, không cần mở cổng
+   hay port-forward ở máy OBS. SRT truyền H.264 + AAC chung trong MPEG-TS, có
+   phục hồi mất gói và phù hợp hơn UDP thuần qua Internet.
+
+   Trên Ubuntu:
+
+   ```bash
+   export LIVESTREAM_API_TOKEN='mot-token-dai'
+   export LIVESTREAM_SRT_PORT=10080
+   # Tùy chọn nhưng nên dùng khi đi qua Internet (10-79 ký tự URL-safe):
+   export LIVESTREAM_SRT_PASSPHRASE='ThayBangMatKhauDai123'
+   chmod +x scripts/run_obs_remote_ubuntu.sh
+   ./scripts/run_obs_remote_ubuntu.sh
+   ```
+
+   Mở inbound **UDP 10080** trong firewall/security group của Ubuntu. Trong OBS
+   ở máy khác, thêm **Media Source**, bỏ chọn **Local File**, đặt **Input** là:
+
+   ```text
+   srt://PUBLIC_IP_UBUNTU:10080?mode=caller&transtype=live&latency=500000&passphrase=ThayBangMatKhauDai123&pbkeylen=16
+   ```
+
+   Đặt **Input Format** là `mpegts`, bật tự khởi động lại phát khi source trở
+   thành active. Nếu không dùng passphrase, bỏ hai tham số `passphrase` và
+   `pbkeylen` ở cả hai phía. `latency` tính bằng microsecond; bắt đầu với
+   `500000` (0,5 giây), giảm về `300000` khi đường truyền tốt hoặc tăng lên
+   `1000000` khi có giật/mất gói. OBS nên được mở sau khi tiến trình Ubuntu đã
+   báo đang chờ SRT; nếu OBS mất kết nối, transport sẽ mở lại listener.
+
+   Kiểm tra đường truyền mà chưa tải model AI:
+
+   ```bash
+   .venv/bin/python tools/test_obs_stream.py \
+     --url 'srt://0.0.0.0:10080?mode=listener&transtype=live&latency=500000&pkt_size=1316'
+   ```
+
+   Máy OBS dùng URL caller tương ứng. Luồng kiểm tra hiển thị card hình và âm
+   440 Hz. Một listener trực tiếp phục vụ một OBS; nếu cần nhiều OBS hoặc cần
+   phân phối qua nhiều mạng, đặt MediaMTX/SRT relay ở giữa.
+
+2. **OBS Media Source qua UDP (khi OBS chạy cùng máy xử lý):**
    transport `obs` mã hóa H.264 + AAC thành một luồng MPEG-TS hoàn chỉnh tại
    `udp://127.0.0.1:23000`. Trong OBS thêm **Media Source**, bỏ chọn
    **Local File**, đặt **Input** là `udp://127.0.0.1:23000`, đặt
@@ -289,12 +332,12 @@ có reverse proxy/TLS.
    Có thể kiểm tra riêng kết nối OBS bằng card thử và âm 440 Hz trước khi tải
    model AI: `.\.venv\Scripts\python.exe .\tools\test_obs_stream.py`.
 
-2. **RTCPush -> SRS -> RTMP (khuyến nghị khi LiveTalking và OBS ở hai máy):**
+3. **RTCPush -> SRS -> RTMP (phương án có media server):**
    chạy SRS ở chế độ RTC-to-RTMP, đặt `push_url` của LiveTalking về WHIP endpoint.
    Cách này tránh phải biên dịch extension `python_rtmpstream` trên Windows. Trong OBS thêm
    Media Source/VLC Video Source với URL `rtmp://RTMP-SERVER/live/avatar`. Tắt
    local file, bật tự reconnect; sau đó dùng OBS stream ra nền tảng đích.
-3. **Virtual camera (cùng một máy Windows):** cài `pyvirtualcam`, OBS virtual
+4. **Virtual camera (cùng một máy Windows):** cài `pyvirtualcam`, OBS virtual
    camera driver và VB-CABLE. Chạy `scripts/run_windows.ps1`, thêm Video Capture
    Device tương ứng trong OBS, rồi chọn cáp âm thanh ảo làm Audio Input Capture.
    Chọn đúng `audio_output_device` trong `config.yaml` nếu máy có nhiều thiết bị.
@@ -302,6 +345,11 @@ có reverse proxy/TLS.
 Luồng qua SRS giữ audio/video chung nên ít sai cấu hình âm thanh hơn virtual
 camera. Nếu muốn dùng `--transport rtmp` trực tiếp, hãy build extension upstream
 `lipku/python_rtmpstream` với FFmpeg 6; đây không phải package PyPI thuần Python.
+
+WebRTC vẫn hữu ích cho trang xem trước hoặc điều khiển tương tác cần độ trễ cực
+thấp. Với OBS chạy dài ở máy khác, SRT là đường chính dễ vận hành hơn vì OBS có
+Media Source SRT trực tiếp; không phụ thuộc Browser Source, thao tác bấm Start
+hay vòng đời phiên WebRTC của trang web.
 
 ## 6. API điều khiển
 

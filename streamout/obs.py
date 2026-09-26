@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from fractions import Fraction
 import time
 from typing import TYPE_CHECKING, Optional
@@ -51,13 +52,18 @@ class OBSOutput(BaseOutput):
         self._video_index = 0
         self._audio_input_samples = 0
         self._started_at = 0.0
-        self._pending_audio = []
+        # Keep at most roughly five seconds of 20 ms audio chunks while the
+        # destination is connecting. This prevents an offline remote OBS from
+        # growing memory forever.
+        self._pending_audio = deque(maxlen=250)
+        self._retry_at = 0.0
 
     def start(self) -> None:
         self._video_index = 0
         self._audio_input_samples = 0
         self._started_at = time.perf_counter()
         self._pending_audio.clear()
+        self._retry_at = 0.0
         logger.info("[OBS] Waiting for first video frame; destination=%s", self.push_url)
 
     def _open_output(self, height: int, width: int) -> None:
@@ -114,7 +120,10 @@ class OBSOutput(BaseOutput):
         self._audio_resampler = av.AudioResampler(
             format="fltp", layout="mono", rate=self.output_sample_rate
         )
+        self._video_index = 0
+        self._audio_input_samples = 0
         self._started_at = time.perf_counter()
+        self._retry_at = 0.0
 
         logger.info(
             "[OBS] Output started: %sx%s@%s, %s, %s bps, audio AAC mono -> %s",
@@ -126,10 +135,28 @@ class OBSOutput(BaseOutput):
             self.push_url,
         )
 
-        pending = self._pending_audio
-        self._pending_audio = []
+        pending = list(self._pending_audio)
+        self._pending_audio.clear()
         for audio, eventpoint in pending:
             self._encode_audio(audio, eventpoint)
+
+    def _reset_output(self, reason: Exception | str | None = None) -> None:
+        if reason is not None:
+            logger.warning("[OBS] Output disconnected; retrying in 2 seconds: %s", reason)
+
+        container = self._container
+        self._container = None
+        self._video_stream = None
+        self._audio_stream = None
+        self._audio_resampler = None
+        self._video_index = 0
+        self._audio_input_samples = 0
+        self._retry_at = time.perf_counter() + 2.0
+        if container is not None:
+            try:
+                container.close()
+            except Exception:
+                pass
 
     def _mux_packets(self, packets) -> None:
         for packet in packets:
@@ -138,14 +165,25 @@ class OBSOutput(BaseOutput):
     def push_video_frame(self, frame) -> None:
         if not isinstance(frame, np.ndarray):
             return
+        if self._container is None and time.perf_counter() < self._retry_at:
+            time.sleep(1 / self.fps)
+            return
         if self._container is None:
             height, width = frame.shape[:2]
-            self._open_output(height, width)
+            try:
+                self._open_output(height, width)
+            except Exception as exc:
+                self._reset_output(exc)
+                return
 
-        video_frame = av.VideoFrame.from_ndarray(frame, format="bgr24")
-        video_frame.pts = self._video_index
-        video_frame.time_base = Fraction(1, self.fps)
-        self._mux_packets(self._video_stream.encode(video_frame))
+        try:
+            video_frame = av.VideoFrame.from_ndarray(frame, format="bgr24")
+            video_frame.pts = self._video_index
+            video_frame.time_base = Fraction(1, self.fps)
+            self._mux_packets(self._video_stream.encode(video_frame))
+        except Exception as exc:
+            self._reset_output(exc)
+            return
 
         target = self._started_at + self._video_index / self.fps
         delay = target - time.perf_counter()
@@ -180,7 +218,10 @@ class OBSOutput(BaseOutput):
         if self._container is None:
             self._pending_audio.append((frame.copy(), eventpoint))
             return
-        self._encode_audio(frame, eventpoint)
+        try:
+            self._encode_audio(frame, eventpoint)
+        except Exception as exc:
+            self._reset_output(exc)
 
     def stop(self) -> None:
         if self._container is None:
@@ -193,6 +234,5 @@ class OBSOutput(BaseOutput):
         except Exception as exc:
             logger.warning("[OBS] Error while flushing output: %s", exc)
         finally:
-            self._container.close()
-            self._container = None
+            self._reset_output()
             logger.info("[OBS] Output stopped")

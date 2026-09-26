@@ -3,6 +3,8 @@ openai>=1.68.0
 PyYAML>=6.0
 requests>=2.31.0
 pytest>=8.0.0
+# PyAV 14.1+ binary wheels include libSRT for direct Ubuntu -> remote OBS output.
+av>=14.1.0
 
 # Native RTMP output is an upstream C++ extension and must be built separately:
 # https://github.com/lipku/python_rtmpstream

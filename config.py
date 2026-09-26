@@ -108,7 +108,7 @@ def parse_args():
                         default='http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream')
     parser.add_argument('--obs_url', type=str,
                         default='udp://127.0.0.1:23000?pkt_size=1316',
-                        help="MPEG-TS destination used by --transport obs")
+                        help="MPEG-TS destination used by --transport obs (UDP, SRT, or RTMP URL)")
     parser.add_argument('--obs_video_encoder', type=str, default='libx264',
                         help="OBS transport encoder: libx264 (safe default) or h264_nvenc")
     parser.add_argument('--obs_video_bitrate', type=int, default=4000000,

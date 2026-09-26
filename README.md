@@ -22,6 +22,8 @@
 > 本工作区增加了无界面的 AI 直播编排层：OpenAI 商品问答、评论队列、
 > 无评论自动话术、远程 API 与 OBS 输出。参见
 > [越南语部署指南](docs/LIVESTREAM_VI.md)。
+> 生产部署建议在 Ubuntu 端输出 H.264/AAC SRT，由另一台机器上的 OBS
+> 主动连接；具体配置见部署指南的远程 OBS 章节。
 
 **效果演示**: [wav2lip](https://www.bilibili.com/video/BV1scwBeyELA/) | [ernerf](https://www.bilibili.com/video/BV1G1421z73r/) | [musetalk](https://www.bilibili.com/video/BV1bUwezvEnG/)
 
