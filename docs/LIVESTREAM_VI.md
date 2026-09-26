@@ -33,6 +33,8 @@ Mặc định `openai.provider: dummy`, hệ thống tạo lời mẫu cục b�
 OpenAI API key**. Chế độ này dùng để ưu tiên kiểm tra TTS, lip-sync, ghi MP4 và
 đường truyền OBS. Khi muốn bật LLM thật, đổi `provider: openai` rồi điền key.
 TTS mặc định là EdgeTTS với giọng nữ tiếng Việt `vi-VN-HoaiMyNeural`.
+Nếu VPS/datacenter bị Microsoft Edge TTS chặn, dùng `--tts sapi --REF_FILE ""`
+để kiểm thử hoàn toàn offline bằng giọng Windows đang cài trên VPS.
 
 Sao chép `.env.example` thành `.env`, sau đó điền:
 

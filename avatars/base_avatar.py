@@ -88,6 +88,7 @@ class BaseAvatar:
 
         _tts_modules = {
             'edgetts': 'tts.edge',
+            'sapi': 'tts.sapi',
             'gpt-sovits': 'tts.sovits',
             'xtts': 'tts.xtts',
             # 'cosyvoice': 'tts.cosyvoice',

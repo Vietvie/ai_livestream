@@ -17,7 +17,17 @@ class EdgeTTS(BaseTTS):
         voice = self.opt.REF_FILE or "vi-VN-HoaiMyNeural"
         voicename = textevent.get('tts', {}).get('ref_file',voice) #self.opt.REF_FILE #"zh-CN-YunxiaNeural"
         t = time.time()
-        asyncio.new_event_loop().run_until_complete(self.__main(voicename,text))
+        for attempt in range(1, 4):
+            self.input_stream.seek(0)
+            self.input_stream.truncate()
+            try:
+                asyncio.new_event_loop().run_until_complete(self.__main(voicename,text))
+            except Exception as exc:
+                logger.warning("EdgeTTS attempt %d/3 failed: %s", attempt, exc)
+            if self.input_stream.getbuffer().nbytes > 0:
+                break
+            if attempt < 3:
+                time.sleep(attempt)
         logger.info(f'-------edge tts time:{time.time()-t:.4f}s')
         if self.input_stream.getbuffer().nbytes<=0: #edgetts err
             logger.error('edgetts err!!!!!')
@@ -59,19 +69,13 @@ class EdgeTTS(BaseTTS):
         return stream
     
     async def __main(self,voicename: str, text: str):
-        try:
-            communicate = edge_tts.Communicate(text, voicename)
+        communicate = edge_tts.Communicate(text, voicename)
 
-            #with open(OUTPUT_FILE, "wb") as file:
-            first = True
-            async for chunk in communicate.stream():
-                if first:
-                    first = False
-                if chunk["type"] == "audio" and self.state==State.RUNNING:
-                    #self.push_audio(chunk["data"])
-                    self.input_stream.write(chunk["data"])
-                    #file.write(chunk["data"])
-                elif chunk["type"] == "WordBoundary":
-                    pass
-        except Exception as e:
-            logger.exception('edgetts')
+        first = True
+        async for chunk in communicate.stream():
+            if first:
+                first = False
+            if chunk["type"] == "audio" and self.state==State.RUNNING:
+                self.input_stream.write(chunk["data"])
+            elif chunk["type"] == "WordBoundary":
+                pass
