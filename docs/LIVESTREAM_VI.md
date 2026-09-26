@@ -230,7 +230,13 @@ Test end-to-end cần checkpoint, avatar, FFmpeg và GPU. Chỉ chế độ Open
 API key. Có thể gọi `/api/livestream/status` để xem lỗi gần nhất nếu avatar không nói.
 
 Ở chế độ dummy, OpenAI key không cần thiết. Sau khi server và session `0` đã
-chạy, tạo trực tiếp một MP4 kiểm thử TTS/lip-sync bằng:
+chạy, tạo trực tiếp một MP4 kiểm thử TTS/lip-sync bằng hai terminal. Terminal 1:
+
+```bash
+python app.py --config config.yaml --transport null --model wav2lip --avatar_id host01
+```
+
+Terminal 2:
 
 ```bash
 python tools/render_lipsync_video.py \

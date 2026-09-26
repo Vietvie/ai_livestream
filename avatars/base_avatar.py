@@ -110,7 +110,8 @@ class BaseAvatar:
             'webrtc': 'streamout.webrtc',
             'rtcpush': 'streamout.webrtc',
             'rtmp': 'streamout.rtmp',
-            'virtualcam': 'streamout.virtualcam'
+            'virtualcam': 'streamout.virtualcam',
+            'null': 'streamout.null',
         }
 
         # 初始化 Output 模块
@@ -499,4 +500,3 @@ class BaseAvatar:
 
         process_quit_event.set()
         process_thread.join()
-
