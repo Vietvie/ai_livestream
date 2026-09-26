@@ -32,6 +32,7 @@ Không có comment -> bộ kịch bản -> TTS/clip hành động -> avatar -> O
 Mặc định `openai.provider: dummy`, hệ thống tạo lời mẫu cục bộ và **không cần
 OpenAI API key**. Chế độ này dùng để ưu tiên kiểm tra TTS, lip-sync, ghi MP4 và
 đường truyền OBS. Khi muốn bật LLM thật, đổi `provider: openai` rồi điền key.
+TTS mặc định là EdgeTTS với giọng nữ tiếng Việt `vi-VN-HoaiMyNeural`.
 
 Sao chép `.env.example` thành `.env`, sau đó điền:
 
