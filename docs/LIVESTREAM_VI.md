@@ -103,6 +103,54 @@ curl -X POST http://SERVER:8010/api/avatar/task \
 Theo dõi bằng `GET /api/avatar/task/{task_id}`. Cách CLI có thêm bước chuẩn hóa
 video nên phù hợp hơn cho lần chuẩn bị chính thức.
 
+### Tùy chọn chất lượng cao hơn: MuseTalk 1.5
+
+MuseTalk 1.5 tái tạo vùng miệng bằng mô hình diffusion/UNet nên thường tự
+nhiên hơn Wav2Lip, nhưng dùng nhiều VRAM hơn và FPS thấp hơn. Dữ liệu avatar
+MuseTalk có thêm `latents.pt`, `mask/` và `mask_coords.pkl`, vì vậy không dùng
+chung thư mục avatar Wav2Lip. Giữ `host01` làm bản dự phòng và tạo ID mới:
+
+```powershell
+cd C:\Users\ezycloudx-admin\Desktop\AI_LIVESTREAM
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\setup_musetalk_windows.ps1
+
+$env:PATH="$PWD\bin;$env:PATH"
+.\.venv\Scripts\python.exe .\tools\prepare_avatar.py .\avatar.mp4 `
+  --avatar-id host01_muse `
+  --model musetalk `
+  --bbox-shift 0 `
+  --musetalk-version v15
+```
+
+Quá trình tạo avatar phải chạy một lần và có thể mất vài phút. Sau khi xuất
+hiện `data\avatars\host01_muse\latents.pt`, chạy server:
+
+```powershell
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+.\.venv\Scripts\python.exe app.py `
+  --config config.yaml `
+  --transport null `
+  --model musetalk `
+  --avatar_id host01_muse `
+  --batch_size 4 `
+  --max_session 1 `
+  --tts omnivoice
+```
+
+Tạo video thử ở terminal thứ hai, không cần kích hoạt `Activate.ps1`:
+
+```powershell
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+.\.venv\Scripts\python.exe .\tools\render_lipsync_video.py `
+  --output .\output\musetalk-omnivoice.mp4
+```
+
+Nếu đường ghép quanh cằm chưa đẹp, tạo một avatar ID mới và thử
+`--bbox-shift -5` hoặc `--bbox-shift 5`. Không ghi đè avatar đang hoạt động
+trong lúc server chạy. Với RTX 5060 Ti, bắt đầu bằng `batch_size 4`; chỉ tăng
+lên `8` khi `nvidia-smi` cho thấy còn VRAM và log `inferfps` vẫn ổn định.
+
 ## 4. Chạy trên macOS để phát triển
 
 Upstream LiveTalking khuyến nghị CUDA cho realtime. macOS phù hợp để sửa config,

@@ -5,6 +5,7 @@ from torch.utils.model_zoo import load_url
 from enum import Enum
 import numpy as np
 import cv2
+import importlib
 try:
     import urllib.request as request_file
 except BaseException:
@@ -63,8 +64,11 @@ class FaceAlignment:
 
 
         # Get the face detector
-        face_detector_module = __import__('face_detection.detection.' + face_detector,
-                                          globals(), locals(), [face_detector], 0)
+        # Import through the package name so this also works when LiveTalking is
+        # launched with ``python -m`` from the repository root on Windows.
+        face_detector_module = importlib.import_module(
+            f"{__package__}.detection.{face_detector}"
+        )
         
         self.face_detector = face_detector_module.FaceDetector(device=device, verbose=verbose)
 

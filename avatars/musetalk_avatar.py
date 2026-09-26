@@ -29,6 +29,7 @@ import torch.nn.functional as F
 import cv2
 import glob
 import pickle
+from pathlib import Path
 
 import queue
 from queue import Queue
@@ -55,6 +56,22 @@ device = initialize_device()
 logger.info('Using {} for inference.'.format(device))
 
 def load_model():
+    required = [
+        Path("models/musetalkV15/unet.pth"),
+        Path("models/musetalkV15/musetalk.json"),
+        Path("models/sd-vae/config.json"),
+        Path("models/sd-vae/diffusion_pytorch_model.bin"),
+        Path("models/whisper/config.json"),
+        Path("models/whisper/pytorch_model.bin"),
+        Path("models/whisper/preprocessor_config.json"),
+    ]
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(
+            "MuseTalk model files are missing:\n- "
+            + "\n- ".join(missing)
+            + "\nRun scripts\\setup_musetalk_windows.ps1 first."
+        )
     # load model weights
     vae, unet, pe = load_all_model()
     #device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()) else "cpu"))
@@ -75,6 +92,14 @@ def load_avatar(avatar_id):
     mask_out_path =f"{avatar_path}/mask"
     mask_coords_path =f"{avatar_path}/mask_coords.pkl"
     avatar_info_path = f"{avatar_path}/avator_info.json"
+
+    required = [coords_path, latents_out_path, mask_coords_path, avatar_info_path]
+    missing = [path for path in required if not os.path.isfile(path)]
+    if missing:
+        raise FileNotFoundError(
+            f"MuseTalk avatar '{avatar_id}' is incomplete. Missing: {missing}. "
+            "Build it with tools\\prepare_avatar.py --model musetalk."
+        )
 
     input_latent_list_cycle = torch.load(latents_out_path)
     with open(coords_path, 'rb') as f:

@@ -28,6 +28,9 @@ def main() -> int:
     parser.add_argument("--skip-normalize", action="store_true")
     parser.add_argument("--pads", default="0 10 0 0")
     parser.add_argument("--bbox-shift", type=int, default=0)
+    parser.add_argument("--extra-margin", type=int, default=10)
+    parser.add_argument("--parsing-mode", choices=["jaw", "raw", "neck"], default="jaw")
+    parser.add_argument("--musetalk-version", choices=["v1", "v15"], default="v15")
     args = parser.parse_args()
 
     source = Path(args.video).expanduser().resolve()
@@ -77,6 +80,9 @@ def main() -> int:
                 "--file", str(normalized),
                 "--avatar_id", args.avatar_id,
                 "--bbox_shift", str(args.bbox_shift),
+                "--extra_margin", str(args.extra_margin),
+                "--parsing_mode", args.parsing_mode,
+                "--version", args.musetalk_version,
             ]
         )
     print(f"Avatar ready: data/avatars/{args.avatar_id}")
