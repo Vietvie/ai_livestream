@@ -1,0 +1,444 @@
+# Cài đặt AI Livestream trên VPS Windows RTX 5060 Ti
+
+Tài liệu này hướng dẫn cài đặt và kiểm tra một luồng MuseTalk + OmniVoice,
+sau đó truyền video H.264 và audio AAC bằng SRT tới OBS ở máy khác.
+
+Quy trình không dùng Conda và không yêu cầu chạy `Activate.ps1`. Mọi lệnh
+Python đều gọi trực tiếp `.venv\Scripts\python.exe` để tránh lỗi PowerShell
+Execution Policy và nhầm môi trường Python.
+
+## 1. Cấu hình thử nghiệm
+
+- Windows VPS
+- CPU Intel Core i7-12700K, 20 logical cores
+- RAM 28 GB
+- NVIDIA GeForce RTX 5060 Ti, VRAM 16 GB
+- SSD 1.600 GB
+- Mạng 1 Gbps
+- Python 3.12
+- PyTorch 2.9.1, CUDA runtime 12.8
+- MuseTalk v1.5, `batch_size=4`
+- OmniVoice tiếng Việt, float16
+- Một luồng 720p, 25 fps
+
+`CUDA 4608` trong thông tin VPS thường là 4.608 CUDA cores của GPU, không phải
+phiên bản CUDA. Dự án dùng PyTorch CUDA 12.8.
+
+## 2. Kiểm tra NVIDIA driver
+
+Mở PowerShell:
+
+```powershell
+nvidia-smi
+```
+
+Kết quả phải có `NVIDIA GeForce RTX 5060 Ti` và khoảng 16 GB VRAM. Nếu
+`nvidia-smi` không tồn tại hoặc không nhận GPU, cài NVIDIA Studio Driver mới và
+khởi động lại VPS.
+
+Tham khảo [NVIDIA Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/).
+
+## 3. Cài Git và Python 3.12
+
+Nếu VPS có `winget`:
+
+```powershell
+winget install -e --id Git.Git
+winget install -e --id Python.Python.3.12
+```
+
+Đóng PowerShell, mở lại rồi kiểm tra:
+
+```powershell
+git --version
+py -3.12 --version
+```
+
+Nếu `winget` không có, tải Python 3.12 từ python.org. Khi cài, chọn `Add
+python.exe to PATH` và `Install launcher for all users`. Không dùng Python 3.14
+cho môi trường dự án này.
+
+## 4. Clone source code
+
+Dùng thư mục không có khoảng trắng:
+
+```powershell
+cd C:\
+git clone https://github.com/Vietvie/ai_livestream.git AI_LIVESTREAM
+cd C:\AI_LIVESTREAM
+git checkout main
+git pull origin main
+```
+
+Nếu repository riêng tư, sử dụng SSH:
+
+```powershell
+git clone git@github.com:Vietvie/ai_livestream.git C:\AI_LIVESTREAM
+```
+
+Kiểm tra phiên bản source:
+
+```powershell
+git log -1 --oneline
+```
+
+Source phải chứa commit `d0c6893` hoặc commit mới hơn.
+
+## 5. Cài môi trường Python và PyTorch
+
+Chạy bằng Execution Policy tạm thời, không thay đổi chính sách toàn hệ thống:
+
+```powershell
+cd C:\AI_LIVESTREAM
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\setup_windows.ps1
+```
+
+Script sẽ:
+
+- Tạo `.venv` bằng Python 3.12.
+- Cài PyTorch 2.9.1 CUDA 12.8.
+- Cài các dependency của LiveTalking và lớp livestream.
+- Tạo `bin\ffmpeg.exe`.
+- Kiểm tra GPU.
+
+PyTorch cung cấp bộ 2.9.1 CUDA 12.8 chính thức cho Windows/Python 3.12 tại
+[PyTorch previous versions](https://pytorch.org/get-started/previous-versions/).
+
+Không cần kích hoạt virtualenv. Từ đây luôn dùng:
+
+```powershell
+.\.venv\Scripts\python.exe
+```
+
+## 6. Kiểm tra CUDA và FFmpeg
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+$env:PYTHONUTF8="1"
+chcp 65001
+
+.\.venv\Scripts\python.exe -c "import torch; print('PyTorch:', torch.__version__); print('CUDA:', torch.cuda.is_available()); print('CUDA runtime:', torch.version.cuda); print('GPU:', torch.cuda.get_device_name(0)); print('VRAM GB:', round(torch.cuda.get_device_properties(0).total_memory/1024**3, 1))"
+
+ffmpeg -version
+```
+
+Kết quả mong đợi:
+
+```text
+CUDA: True
+CUDA runtime: 12.8
+GPU: NVIDIA GeForce RTX 5060 Ti
+VRAM GB: khoảng 16
+```
+
+## 7. Cài MuseTalk 1.5
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\setup_musetalk_windows.ps1
+```
+
+Script tải MuseTalk, VAE, Whisper, face parsing và FAN landmark. Kiểm tra:
+
+```powershell
+Test-Path .\models\musetalkV15\unet.pth
+Test-Path .\models\sd-vae\diffusion_pytorch_model.bin
+Test-Path .\models\whisper\pytorch_model.bin
+```
+
+Cả ba lệnh phải trả về `True`.
+
+## 8. Cài và kiểm tra OmniVoice tiếng Việt
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\setup_omnivoice_windows.ps1
+```
+
+Lần đầu sẽ tải model từ Hugging Face. Sau khi hoàn thành:
+
+```powershell
+Start-Process .\output\omnivoice-test.wav
+```
+
+Nghe file để xác nhận giọng tiếng Việt trước khi thử lip-sync. Kiểm tra
+dependency:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip check
+```
+
+Kết quả nên là `No broken requirements found.`
+
+## 9. Copy và chuẩn bị video avatar
+
+Copy video vào:
+
+```text
+C:\AI_LIVESTREAM\avatar.mp4
+```
+
+Kiểm tra:
+
+```powershell
+Test-Path C:\AI_LIVESTREAM\avatar.mp4
+```
+
+Tạo avatar MuseTalk cho video dọc:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+
+.\.venv\Scripts\python.exe .\tools\prepare_avatar.py .\avatar.mp4 `
+  --avatar-id host01_muse_fan `
+  --model musetalk `
+  --landmark-backend fan `
+  --bbox-shift 0 `
+  --musetalk-version v15
+```
+
+Nếu video ngang 16:9, thêm hai tham số:
+
+```powershell
+  --width 1280 `
+  --height 720
+```
+
+Kiểm tra kết quả:
+
+```powershell
+Test-Path .\data\avatars\host01_muse_fan\latents.pt
+Test-Path .\data\avatars\host01_muse_fan\coords.pkl
+Test-Path .\data\avatars\host01_muse_fan\mask_coords.pkl
+```
+
+Tất cả phải trả về `True`.
+
+## 10. Chạy thử TTS và lip-sync thành MP4
+
+Trong PowerShell thứ nhất:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+$env:PYTHONUTF8="1"
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+
+.\.venv\Scripts\python.exe app.py `
+  --config config.yaml `
+  --transport null `
+  --model musetalk `
+  --avatar_id host01_muse_fan `
+  --batch_size 4 `
+  --max_session 1 `
+  --tts omnivoice
+```
+
+Chờ log có các dòng tương đương:
+
+```text
+Using cuda for inference
+OmniVoice ready
+start inference
+start http server
+```
+
+Trong PowerShell thứ hai:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+$env:PYTHONUTF8="1"
+
+.\.venv\Scripts\python.exe .\tools\render_lipsync_video.py `
+  "Xin chào, đây là video thử nghiệm hệ thống livestream trí tuệ nhân tạo bằng tiếng Việt." `
+  --output .\output\musetalk-test.mp4
+```
+
+Mở kết quả:
+
+```powershell
+Start-Process .\output\musetalk-test.mp4
+```
+
+## 11. Kiểm tra SRT tới OBS trước khi chạy AI
+
+Mở cổng Windows Firewall:
+
+```powershell
+New-NetFirewallRule `
+  -DisplayName "AI Livestream SRT UDP 10080" `
+  -Direction Inbound `
+  -Protocol UDP `
+  -LocalPort 10080 `
+  -Action Allow
+```
+
+Nếu nhà cung cấp VPS có firewall hoặc security group riêng, mở thêm UDP 10080
+tại trang quản trị VPS.
+
+Trên VPS chạy card kiểm tra:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+
+.\.venv\Scripts\python.exe .\tools\test_obs_stream.py `
+  --url "srt://0.0.0.0:10080?mode=listener&transtype=live&latency=500000&pkt_size=1316&passphrase=MatKhauSRT123456&pbkeylen=16" `
+  --seconds 60
+```
+
+Lệnh sẽ chờ OBS kết nối; đây là hành vi bình thường.
+
+Trên máy OBS, thêm **Media Source**:
+
+- Bỏ chọn **Local File**.
+- Đặt **Input**:
+
+```text
+srt://IP_PUBLIC_VPS:10080?mode=caller&transtype=live&latency=500000&passphrase=MatKhauSRT123456&pbkeylen=16
+```
+
+- Đặt **Input Format** là `mpegts`.
+- Bật khởi động lại phát khi source trở thành active.
+
+Khi thành công, OBS sẽ hiển thị card kiểm tra và phát âm 440 Hz.
+
+## 12. Chạy AI livestream hoàn chỉnh tới OBS
+
+Dừng card kiểm tra bằng `Ctrl+C`, sau đó chạy:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+$env:PYTHONUTF8="1"
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+
+.\.venv\Scripts\python.exe app.py `
+  --config config.yaml `
+  --transport obs `
+  --obs_url "srt://0.0.0.0:10080?mode=listener&transtype=live&latency=500000&pkt_size=1316&passphrase=MatKhauSRT123456&pbkeylen=16" `
+  --obs_video_encoder libx264 `
+  --obs_video_bitrate 4000000 `
+  --model musetalk `
+  --avatar_id host01_muse_fan `
+  --batch_size 4 `
+  --max_session 1 `
+  --tts omnivoice
+```
+
+Mở Media Source trong OBS. Khi kết nối thành công, OBS sẽ nhận cả hình và âm
+thanh trong cùng luồng SRT/MPEG-TS.
+
+## 13. Gửi câu nói thử qua API
+
+Mở PowerShell khác:
+
+```powershell
+$headers = @{
+  Authorization = "Bearer local-test-token"
+}
+
+$body = @{
+  sessionid = "0"
+  text = "Xin chào mọi người, đây là buổi livestream thử nghiệm đầu tiên."
+  interrupt = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://127.0.0.1:8010/api/livestream/speak" `
+  -Headers $headers `
+  -ContentType "application/json; charset=utf-8" `
+  -Body $body
+```
+
+Kiểm tra trạng thái:
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "http://127.0.0.1:8010/api/livestream/status" `
+  -Headers $headers
+```
+
+Chế độ mặc định dùng LLM dummy nên chưa cần OpenAI API key.
+
+## 14. Theo dõi tài nguyên
+
+Mở PowerShell khác:
+
+```powershell
+nvidia-smi -l 2
+```
+
+Một lần test đạt yêu cầu khi:
+
+- VRAM không vượt sát 16 GB.
+- Log `actual avg infer fps` cao hơn 25.
+- OBS không giật hình hoặc mất âm thanh.
+- Lip-sync bắt đầu trong thời gian chấp nhận được.
+- Không xuất hiện `CUDA out of memory`.
+
+Nếu thiếu VRAM, giảm `--batch_size 4` xuống `--batch_size 2`. Sau khi một luồng
+hoạt động ổn định mới bắt đầu thử kiến trúc đa luồng.
+
+## 15. Lỗi thường gặp
+
+### `conda` không tồn tại
+
+Không dùng Conda. Luôn gọi `.\.venv\Scripts\python.exe`.
+
+### `Activate.ps1 cannot be loaded`
+
+Không cần kích hoạt môi trường. Nếu phải chạy script PowerShell, dùng:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\TEN_SCRIPT.ps1
+```
+
+### `ModuleNotFoundError: flask` hoặc `requests`
+
+Đang dùng nhầm Python hệ thống. Chạy bằng:
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
+
+### `ffmpeg is required and was not found in PATH`
+
+```powershell
+$env:PATH="$PWD\bin;$env:PATH"
+ffmpeg -version
+```
+
+### `CUDA: False`
+
+Kiểm tra `nvidia-smi`, sau đó cài lại đúng PyTorch CUDA 12.8:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --force-reinstall `
+  torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 `
+  --index-url https://download.pytorch.org/whl/cu128
+```
+
+### SRT báo `Protocol not found`
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade "av>=14.1.0"
+```
+
+### `h264_nvenc` không khả dụng
+
+Giữ `--obs_video_encoder libx264`. CPU i7-12700K đủ để thử một luồng 720p25.
+
+### OmniVoice hoặc MuseTalk hết VRAM
+
+- Giảm `--batch_size` từ 4 xuống 2.
+- Giảm `omnivoice_num_step` trong `config.yaml` từ 16 xuống 8.
+- Chỉ chạy một session khi kiểm tra ban đầu.
+
