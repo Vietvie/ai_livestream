@@ -16,6 +16,11 @@ if ($LASTEXITCODE -ne 0) {
     throw "OmniVoice installation failed."
 }
 
+& $VenvPython -m pip check
+if ($LASTEXITCODE -ne 0) {
+    throw "Python dependency check failed after installing OmniVoice."
+}
+
 & $VenvPython -c "import omnivoice; print('OmniVoice package: OK')"
 if ($LASTEXITCODE -ne 0) {
     throw "OmniVoice import check failed."

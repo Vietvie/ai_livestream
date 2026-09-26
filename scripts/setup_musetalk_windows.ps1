@@ -6,9 +6,14 @@ if (-not (Test-Path $VenvPython)) {
     throw ".venv was not found. Run .\scripts\setup_windows.ps1 first."
 }
 
-& $VenvPython -m pip install --upgrade "huggingface_hub[hf_xet]"
+& $VenvPython -m pip install --upgrade "huggingface_hub[hf_xet]>=1.23.0,<2.0"
 if ($LASTEXITCODE -ne 0) {
     throw "Could not install huggingface_hub."
+}
+
+& $VenvPython -m pip check
+if ($LASTEXITCODE -ne 0) {
+    throw "Python dependency check failed after installing huggingface_hub."
 }
 
 & $VenvPython tools\download_musetalk_models.py

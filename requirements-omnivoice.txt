@@ -1,3 +1,4 @@
 # Optional local Vietnamese TTS backend. Install only on the GPU VPS.
 # PyTorch is installed separately by scripts/setup_windows.ps1.
 omnivoice
+huggingface_hub>=1.23.0,<2.0
