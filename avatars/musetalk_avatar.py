@@ -67,11 +67,18 @@ def load_model():
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
-        raise FileNotFoundError(
-            "MuseTalk model files are missing:\n- "
-            + "\n- ".join(missing)
-            + "\nRun scripts\\setup_musetalk_windows.ps1 first."
+        logger.info(
+            "MuseTalk checkpoints are missing; downloading them on first use"
         )
+        from tools.download_musetalk_models import ensure_musetalk_models
+
+        ensure_musetalk_models()
+        missing = [str(path) for path in required if not path.is_file()]
+        if missing:
+            raise FileNotFoundError(
+                "MuseTalk model download completed but files are still missing:\n- "
+                + "\n- ".join(missing)
+            )
     # load model weights
     vae, unet, pe = load_all_model()
     #device = torch.device("cuda" if torch.cuda.is_available() else ("mps" if (hasattr(torch.backends, "mps") and torch.backends.mps.is_available()) else "cpu"))

@@ -16,14 +16,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Python dependency check failed after installing huggingface_hub."
 }
 
-& $VenvPython tools\download_musetalk_models.py
-if ($LASTEXITCODE -ne 0) {
-    throw "MuseTalk checkpoint download failed."
-}
-
 & $VenvPython -c "from diffusers import AutoencoderKL; from transformers import WhisperModel; import face_alignment; face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, device='cpu', compile=False); print('MuseTalk dependencies and FAN landmarks: OK')"
 if ($LASTEXITCODE -ne 0) {
     throw "MuseTalk dependency import check failed."
 }
 
-Write-Host "MuseTalk v1.5 setup complete."
+Write-Host "MuseTalk dependencies are ready. Checkpoints download on first use."

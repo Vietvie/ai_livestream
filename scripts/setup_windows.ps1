@@ -32,6 +32,12 @@ $VenvPython = Join-Path $PWD ".venv\Scripts\python.exe"
 & $VenvPython -m pip install torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url $TorchIndexUrl
 & $VenvPython -m pip install -r requirements.txt
 & $VenvPython -m pip install -r requirements-livestream.txt
+& $VenvPython -m pip install -r requirements-omnivoice.txt
+& $VenvPython -m pip install --upgrade "huggingface_hub[hf_xet]>=1.23.0,<2.0" "face-alignment==1.5.0"
+& $VenvPython -m pip check
+if ($LASTEXITCODE -ne 0) {
+    throw "Python dependency check failed. Review the pip conflict shown above."
+}
 
 # imageio-ffmpeg ships a Windows ffmpeg executable. Copy it to a stable local
 # bin directory so LiveTalking's subprocess calls can find `ffmpeg.exe`.
@@ -42,10 +48,11 @@ New-Item -ItemType Directory -Force -Path $BinDirectory | Out-Null
 Copy-Item -Force $FfmpegSource (Join-Path $BinDirectory "ffmpeg.exe")
 
 Write-Host ""
-Write-Host "Setup complete. In each new PowerShell terminal run:"
-Write-Host '  .\.venv\Scripts\Activate.ps1'
+Write-Host "Setup complete. Model checkpoints will download on first use."
+Write-Host "In each new PowerShell terminal run:"
 Write-Host '  $env:PATH="$PWD\bin;$env:PATH"'
 Write-Host '  $env:LIVESTREAM_API_TOKEN="local-test-token"'
+Write-Host '  .\.venv\Scripts\python.exe app.py ...'
 Write-Host ""
 & $VenvPython -c "import torch; print('CUDA:', torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'No CUDA GPU')"
 & (Join-Path $BinDirectory "ffmpeg.exe") -version

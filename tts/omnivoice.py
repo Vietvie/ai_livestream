@@ -30,7 +30,7 @@ class OmniVoiceTTS(BaseTTS):
             from omnivoice import OmniVoice
         except ImportError as exc:
             raise RuntimeError(
-                "OmniVoice is not installed. Run scripts\\setup_omnivoice_windows.ps1"
+                "OmniVoice is not installed. Rerun scripts\\setup_windows.ps1"
             ) from exc
 
         self._torch = torch

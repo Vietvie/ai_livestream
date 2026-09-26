@@ -61,6 +61,12 @@ def generate_avatar(video_path, avatar_id, save_path='./data/avatars', bbox_shif
         landmark_backend: fan (quality) or detector (legacy fallback)
         progress_callback: 进度回调函数，接收 0-100 的整数
     """
+    # Keep installation lightweight: checkpoints are fetched only when a
+    # MuseTalk avatar is actually prepared.
+    from tools.download_musetalk_models import ensure_musetalk_models
+
+    ensure_musetalk_models()
+
     avatar_save_path = os.path.join(save_path, avatar_id)
     save_full_path = os.path.join(avatar_save_path, 'full_imgs')
     create_dir(avatar_save_path)

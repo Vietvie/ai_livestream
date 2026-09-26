@@ -112,10 +112,7 @@ MuseTalk có thêm `latents.pt`, `mask/` và `mask_coords.pkl`, vì vậy không
 chung thư mục avatar Wav2Lip. Giữ `host01` làm bản dự phòng và tạo ID mới:
 
 ```powershell
-cd C:\Users\ezycloudx-admin\Desktop\AI_LIVESTREAM
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\setup_musetalk_windows.ps1
-
+cd C:\AI_LIVESTREAM
 $env:PATH="$PWD\bin;$env:PATH"
 .\.venv\Scripts\python.exe .\tools\prepare_avatar.py .\avatar.mp4 `
   --avatar-id host01_muse `
@@ -125,8 +122,10 @@ $env:PATH="$PWD\bin;$env:PATH"
   --musetalk-version v15
 ```
 
-Quá trình tạo avatar phải chạy một lần và có thể mất vài phút. Sau khi xuất
-hiện `data\avatars\host01_muse\latents.pt`, chạy server:
+Lần đầu chạy, chương trình tự tải các checkpoint MuseTalk, VAE, Whisper và face
+model còn thiếu từ Hugging Face. Quá trình tạo avatar chỉ cần chạy một lần và
+có thể mất vài phút. Sau khi xuất hiện
+`data\avatars\host01_muse\latents.pt`, chạy server:
 
 ```powershell
 $env:LIVESTREAM_API_TOKEN="local-test-token"
@@ -182,32 +181,26 @@ Repo gốc đang dùng Python 3.12, PyTorch 2.9.1 và CUDA 12.8. Trong PowerShel
 Không bắt buộc cài Conda. Nếu VPS đã có Python 3.12, chạy script tự động:
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\scripts\setup_windows.ps1
-.\.venv\Scripts\Activate.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\setup_windows.ps1
 $env:PATH="$PWD\bin;$env:PATH"
 ```
 
-Script tạo `.venv`, cài PyTorch CUDA và chép FFmpeg cục bộ vào `bin`. Các lệnh
-Conda bên dưới chỉ là lựa chọn thay thế nếu máy đã có Conda.
+Script tạo `.venv`, cài PyTorch CUDA, OmniVoice, dependency MuseTalk và chép
+FFmpeg cục bộ vào `bin`. Script không tải checkpoint model. MuseTalk tải model
+khi chuẩn bị avatar lần đầu; OmniVoice tải model tiếng Việt khi nhận câu đầu
+tiên. Không cần kích hoạt `Activate.ps1` và không cần chạy script setup model
+riêng.
 
-### Cài và thử OmniVoice tiếng Việt
+### Tự tải và thử OmniVoice tiếng Việt
 
-Sau khi `setup_windows.ps1` đã chạy thành công, cài backend TTS riêng:
-
-```powershell
-.\scripts\setup_omnivoice_windows.ps1
-Start-Process .\output\omnivoice-test.wav
-```
-
-Lần chạy đầu sẽ tải model từ Hugging Face và lâu hơn các lần sau. Script tạo
-`output\omnivoice-test.wav` để kiểm tra tiếng Việt trước khi nạp đồng thời
-Wav2Lip. Sau khi nghe file này đúng, chạy toàn bộ luồng:
+Sau khi `setup_windows.ps1` chạy thành công, chạy toàn bộ luồng. Lần tạo câu
+đầu tiên sẽ tự tải OmniVoice từ Hugging Face và lâu hơn các lần sau:
 
 ```powershell
 $env:PATH="$PWD\bin;$env:PATH"
 $env:LIVESTREAM_API_TOKEN="local-test-token"
-python app.py `
+.\.venv\Scripts\python.exe app.py `
   --config config.yaml `
   --transport null `
   --model wav2lip `

@@ -100,8 +100,12 @@ Script sẽ:
 - Tạo `.venv` bằng Python 3.12.
 - Cài PyTorch 2.9.1 CUDA 12.8.
 - Cài các dependency của LiveTalking và lớp livestream.
+- Cài package OmniVoice, Hugging Face và FAN landmark.
 - Tạo `bin\ffmpeg.exe`.
 - Kiểm tra GPU.
+
+Script **không tải checkpoint MuseTalk hoặc OmniVoice**. Model nào được sử dụng
+mới được tải tự động trong lần chạy đầu tiên.
 
 PyTorch cung cấp bộ 2.9.1 CUDA 12.8 chính thức cho Windows/Python 3.12 tại
 [PyTorch previous versions](https://pytorch.org/get-started/previous-versions/).
@@ -134,46 +138,28 @@ GPU: NVIDIA GeForce RTX 5060 Ti
 VRAM GB: khoảng 16
 ```
 
-## 7. Cài MuseTalk 1.5
+## 7. Cơ chế tự tải model
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\setup_musetalk_windows.ps1
-```
+Không cần chạy `setup_musetalk_windows.ps1`,
+`setup_omnivoice_windows.ps1` hoặc tải checkpoint thủ công.
 
-Script tải MuseTalk, VAE, Whisper, face parsing và FAN landmark. Kiểm tra:
+- Khi chạy `prepare_avatar.py --model musetalk` lần đầu, chương trình tự tải
+  MuseTalk v1.5, VAE, Whisper, face parsing và face detector còn thiếu.
+- Khi TTS nhận câu nói đầu tiên, OmniVoice tự tải model tiếng Việt còn thiếu.
+- Những lần sau chương trình dùng cache/model trên SSD và không tải lại.
+- Nếu download bị gián đoạn, chạy lại đúng lệnh đang dùng; chương trình chỉ tải
+  file còn thiếu.
 
-```powershell
-Test-Path .\models\musetalkV15\unet.pth
-Test-Path .\models\sd-vae\diffusion_pytorch_model.bin
-Test-Path .\models\whisper\pytorch_model.bin
-```
-
-Cả ba lệnh phải trả về `True`.
-
-## 8. Cài và kiểm tra OmniVoice tiếng Việt
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\setup_omnivoice_windows.ps1
-```
-
-Lần đầu sẽ tải model từ Hugging Face. Sau khi hoàn thành:
-
-```powershell
-Start-Process .\output\omnivoice-test.wav
-```
-
-Nghe file để xác nhận giọng tiếng Việt trước khi thử lip-sync. Kiểm tra
-dependency:
+Sau khi `setup_windows.ps1` hoàn thành, chỉ cần kiểm tra dependency:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-Kết quả nên là `No broken requirements found.`
+Kết quả nên là `No broken requirements found.` Model được tải sau, ở bước thực
+sự cần tới nó.
 
-## 9. Copy và chuẩn bị video avatar
+## 8. Copy và chuẩn bị video avatar
 
 Copy video vào:
 
@@ -187,7 +173,8 @@ Kiểm tra:
 Test-Path C:\AI_LIVESTREAM\avatar.mp4
 ```
 
-Tạo avatar MuseTalk cho video dọc:
+Tạo avatar MuseTalk cho video dọc. Lần chạy đầu tự tải checkpoint nên có thể mất
+thêm vài phút và cần kết nối Internet tới Hugging Face:
 
 ```powershell
 cd C:\AI_LIVESTREAM
@@ -218,7 +205,7 @@ Test-Path .\data\avatars\host01_muse_fan\mask_coords.pkl
 
 Tất cả phải trả về `True`.
 
-## 10. Chạy thử TTS và lip-sync thành MP4
+## 9. Chạy thử TTS và lip-sync thành MP4
 
 Trong PowerShell thứ nhất:
 
@@ -238,7 +225,8 @@ $env:LIVESTREAM_API_TOKEN="local-test-token"
   --tts omnivoice
 ```
 
-Chờ log có các dòng tương đương:
+Lần đầu server nhận câu nói, OmniVoice sẽ tự tải model tiếng Việt. Chờ log có
+các dòng tương đương:
 
 ```text
 Using cuda for inference
@@ -265,7 +253,7 @@ Mở kết quả:
 Start-Process .\output\musetalk-test.mp4
 ```
 
-## 11. Kiểm tra SRT tới OBS trước khi chạy AI
+## 10. Kiểm tra SRT tới OBS trước khi chạy AI
 
 Mở cổng Windows Firewall:
 
@@ -308,7 +296,7 @@ srt://IP_PUBLIC_VPS:10080?mode=caller&transtype=live&latency=500000&passphrase=M
 
 Khi thành công, OBS sẽ hiển thị card kiểm tra và phát âm 440 Hz.
 
-## 12. Chạy AI livestream hoàn chỉnh tới OBS
+## 11. Chạy AI livestream hoàn chỉnh tới OBS
 
 Dừng card kiểm tra bằng `Ctrl+C`, sau đó chạy:
 
@@ -334,7 +322,7 @@ $env:LIVESTREAM_API_TOKEN="local-test-token"
 Mở Media Source trong OBS. Khi kết nối thành công, OBS sẽ nhận cả hình và âm
 thanh trong cùng luồng SRT/MPEG-TS.
 
-## 13. Gửi câu nói thử qua API
+## 12. Gửi câu nói thử qua API
 
 Mở PowerShell khác:
 
@@ -368,7 +356,7 @@ Invoke-RestMethod `
 
 Chế độ mặc định dùng LLM dummy nên chưa cần OpenAI API key.
 
-## 14. Theo dõi tài nguyên
+## 13. Theo dõi tài nguyên
 
 Mở PowerShell khác:
 
@@ -387,7 +375,7 @@ Một lần test đạt yêu cầu khi:
 Nếu thiếu VRAM, giảm `--batch_size 4` xuống `--batch_size 2`. Sau khi một luồng
 hoạt động ổn định mới bắt đầu thử kiến trúc đa luồng.
 
-## 15. Lỗi thường gặp
+## 14. Lỗi thường gặp
 
 ### `conda` không tồn tại
 
@@ -441,4 +429,3 @@ Giữ `--obs_video_encoder libx264`. CPU i7-12700K đủ để thử một luồ
 - Giảm `--batch_size` từ 4 xuống 2.
 - Giảm `omnivoice_num_step` trong `config.yaml` từ 16 xuống 8.
 - Chỉ chạy một session khi kiểm tra ban đầu.
-
