@@ -162,7 +162,7 @@ def main():
     # share avatar_sessions (RTCManager handles it but routes.py expects it)
 
     # 虚拟摄像头或 RTMP 模式：启动后台渲染线程
-    if opt.transport in ('virtualcam', 'rtmp', 'null'):
+    if opt.transport in ('virtualcam', 'rtmp', 'obs', 'null'):
         thread_quit = Event()
         params = {}
         # session 0 for virtualcam
@@ -171,6 +171,8 @@ def main():
         rendthrd.start()
         if opt.transport == 'virtualcam':
             logger.info("[VirtualCam] Virtual camera output enabled - digital human will be rendered to virtual camera")
+        elif opt.transport == 'obs':
+            logger.info("[OBS] Muxed audio/video output enabled for OBS Media Source")
         elif opt.transport == 'null':
             logger.info("[Null] Headless render enabled for TTS/lip-sync MP4 tests")
 

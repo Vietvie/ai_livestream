@@ -101,11 +101,18 @@ def parse_args():
 
     # ─── 传输 ─────────────────────────────────────────────────────────
     parser.add_argument('--transport', type=str, default='webrtc',
-                        help="output: rtcpush/webrtc/rtmp/virtualcam/null")
+                        help="output: obs/rtcpush/webrtc/rtmp/virtualcam/null")
     parser.add_argument('--stun', type=str, default='stun:stun.freeswitch.org:3478',
                         help="stun server url")
     parser.add_argument('--push_url', type=str,
                         default='http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream')
+    parser.add_argument('--obs_url', type=str,
+                        default='udp://127.0.0.1:23000?pkt_size=1316',
+                        help="MPEG-TS destination used by --transport obs")
+    parser.add_argument('--obs_video_encoder', type=str, default='libx264',
+                        help="OBS transport encoder: libx264 (safe default) or h264_nvenc")
+    parser.add_argument('--obs_video_bitrate', type=int, default=4000000,
+                        help="OBS transport video bitrate in bits per second")
     parser.add_argument('--max_session', type=int, default=5)
     parser.add_argument('--listenport', type=int, default=8010,
                         help="web listen port")

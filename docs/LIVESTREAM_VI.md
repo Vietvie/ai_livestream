@@ -271,14 +271,30 @@ cho IP cần điều khiển. RTMP và các cổng của RTMP server cũng cần
 hình triển khai. Không công khai `.env`, model, thư mục record hoặc API mà không
 có reverse proxy/TLS.
 
-### Hai cách đưa vào OBS
+### Ba cách đưa vào OBS
 
-1. **RTCPush -> SRS -> RTMP (khuyến nghị khi LiveTalking và OBS ở hai máy):**
+1. **OBS Media Source qua UDP (khuyến nghị khi OBS chạy cùng VPS Windows):**
+   transport `obs` mã hóa H.264 + AAC thành một luồng MPEG-TS hoàn chỉnh tại
+   `udp://127.0.0.1:23000`. Trong OBS thêm **Media Source**, bỏ chọn
+   **Local File**, đặt **Input** là `udp://127.0.0.1:23000`, đặt
+   **Input Format** là `mpegts` nếu OBS không tự nhận. Cách này không cần
+   virtual camera, VB-CABLE hoặc SRS và giữ audio/video trong cùng luồng.
+
+   ```powershell
+   $env:LIVESTREAM_API_TOKEN="local-test-token"
+   powershell.exe -NoProfile -ExecutionPolicy Bypass `
+     -File .\scripts\run_obs_windows.ps1
+   ```
+
+   Có thể kiểm tra riêng kết nối OBS bằng card thử và âm 440 Hz trước khi tải
+   model AI: `.\.venv\Scripts\python.exe .\tools\test_obs_stream.py`.
+
+2. **RTCPush -> SRS -> RTMP (khuyến nghị khi LiveTalking và OBS ở hai máy):**
    chạy SRS ở chế độ RTC-to-RTMP, đặt `push_url` của LiveTalking về WHIP endpoint.
    Cách này tránh phải biên dịch extension `python_rtmpstream` trên Windows. Trong OBS thêm
    Media Source/VLC Video Source với URL `rtmp://RTMP-SERVER/live/avatar`. Tắt
    local file, bật tự reconnect; sau đó dùng OBS stream ra nền tảng đích.
-2. **Virtual camera (cùng một máy Windows):** cài `pyvirtualcam`, OBS virtual
+3. **Virtual camera (cùng một máy Windows):** cài `pyvirtualcam`, OBS virtual
    camera driver và VB-CABLE. Chạy `scripts/run_windows.ps1`, thêm Video Capture
    Device tương ứng trong OBS, rồi chọn cáp âm thanh ảo làm Audio Input Capture.
    Chọn đúng `audio_output_device` trong `config.yaml` nếu máy có nhiều thiết bị.

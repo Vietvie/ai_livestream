@@ -66,7 +66,7 @@ GET /api/admin/config
 | `REF_FILE` | string | "zh-CN-YunxiaNeural" | TTS 参考文件或语音模型ID |
 | `REF_TEXT` | string | null | TTS 参考文本 |
 | `TTS_SERVER` | string | "http://127.0.0.1:9880" | TTS 服务地址 |
-| `transport` | string | "webrtc" | 输出传输方式：rtcpush / webrtc / rtmp / virtualcam |
+| `transport` | string | "webrtc" | 输出传输方式：obs / rtcpush / webrtc / rtmp / virtualcam |
 | `push_url` | string | — | RTCPush 目标地址 |
 | `max_session` | int | 1 | 最大会话数 |
 | `listenport` | int | 8010 | HTTP 监听端口 |
@@ -123,4 +123,3 @@ GET /api/admin/sessions
 | `customopt` | array | 自定义动作配置 |
 
 ---
-

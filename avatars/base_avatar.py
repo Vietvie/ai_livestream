@@ -112,6 +112,7 @@ class BaseAvatar:
             'webrtc': 'streamout.webrtc',
             'rtcpush': 'streamout.webrtc',
             'rtmp': 'streamout.rtmp',
+            'obs': 'streamout.obs',
             'virtualcam': 'streamout.virtualcam',
             'null': 'streamout.null',
         }
