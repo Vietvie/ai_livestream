@@ -21,6 +21,7 @@ POST /api/avatar/task
 | `img_size` | 否 | int | 256 | 输出图像尺寸 |
 | `nosmooth` | 否 | bool | false | 禁用人脸检测平滑 |
 | `bbox_shift` | 否 | int | 0 | 人脸框偏移（musetalk） |
+| `landmark_backend` | 否 | string | "fan" | MuseTalk 人脸裁剪：`fan` 68 点（推荐）/ `detector` 兼容模式 |
 | `extra_margin` | 否 | int | 10 | 人脸裁剪额外边距（musetalk） |
 | `pads` | 否 | string | "0 10 0 0" | 填充：上 下 左 右（空格分隔） |
 | `parsing_mode` | 否 | string | "jaw" | 人脸解析模式（musetalk） |
@@ -133,7 +134,7 @@ DELETE /api/avatar/task/{task_id}
 | model | 专有参数 | 生成模块 |
 |-------|----------|----------|
 | `wav2lip` | `face_det_batch_size`, `pads`, `nosmooth`, `img_size` | `avatars/wav2lip/genavatar.py` |
-| `musetalk` | `bbox_shift`, `extra_margin`, `parsing_mode`, `version` | `avatars/musetalk/genavatar.py` |
+| `musetalk` | `bbox_shift`, `landmark_backend`, `extra_margin`, `parsing_mode`, `version` | `avatars/musetalk/genavatar.py` |
 
 ## 生成输出
 

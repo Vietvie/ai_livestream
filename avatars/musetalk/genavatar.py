@@ -46,7 +46,7 @@ def create_dir(dir_path):
         os.makedirs(dir_path)
 
 
-def generate_avatar(video_path, avatar_id, save_path='./data/avatars', bbox_shift=0, extra_margin=10, parsing_mode='jaw', version='v15', progress_callback=None):
+def generate_avatar(video_path, avatar_id, save_path='./data/avatars', bbox_shift=0, extra_margin=10, parsing_mode='jaw', version='v15', landmark_backend='fan', progress_callback=None):
     """
     生成avatar的核心逻辑
 
@@ -58,6 +58,7 @@ def generate_avatar(video_path, avatar_id, save_path='./data/avatars', bbox_shif
         extra_margin: 额外边距
         parsing_mode: 解析模式
         version: 版本
+        landmark_backend: fan (quality) or detector (legacy fallback)
         progress_callback: 进度回调函数，接收 0-100 的整数
     """
     avatar_save_path = os.path.join(save_path, avatar_id)
@@ -77,7 +78,8 @@ def generate_avatar(video_path, avatar_id, save_path='./data/avatars', bbox_shif
         json.dump({
             "avatar_id": avatar_id,
             "video_path": video_path,
-            "bbox_shift": bbox_shift
+            "bbox_shift": bbox_shift,
+            "landmark_backend": landmark_backend
         }, f)
 
     if os.path.isfile(video_path):
@@ -96,7 +98,9 @@ def generate_avatar(video_path, avatar_id, save_path='./data/avatars', bbox_shif
 
     input_img_list = sorted(glob.glob(os.path.join(save_full_path, '*.[jpJP][pnPN]*[gG]')))
     print("extracting landmarks...")
-    coord_list, frame_list = get_landmark_and_bbox(input_img_list, bbox_shift)
+    coord_list, frame_list = get_landmark_and_bbox(
+        input_img_list, bbox_shift, backend=landmark_backend
+    )
 
     if progress_callback: progress_callback(50)
 
@@ -168,6 +172,7 @@ if __name__ == '__main__':
     parser.add_argument("--left_cheek_width", type=int, default=90, help="Width of left cheek region")
     parser.add_argument("--right_cheek_width", type=int, default=90, help="Width of right cheek region")
     parser.add_argument("--bbox_shift", type=int, default=0, help="Bounding box shift value")
+    parser.add_argument("--landmark_backend", choices=["fan", "detector"], default="fan", help="Face crop backend; fan gives accurate 68-point MuseTalk crops")
     parser.add_argument("--extra_margin", type=int, default=10, help="Extra margin for face cropping")
     parser.add_argument("--parsing_mode", default='jaw', help="Face blending parsing mode")
     args = parser.parse_args()
@@ -177,6 +182,7 @@ if __name__ == '__main__':
         avatar_id=args.avatar_id,
         save_path=args.save_path,
         bbox_shift=args.bbox_shift,
+        landmark_backend=args.landmark_backend,
         extra_margin=args.extra_margin,
         parsing_mode=args.parsing_mode,
         version=args.version

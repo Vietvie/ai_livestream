@@ -119,6 +119,7 @@ $env:PATH="$PWD\bin;$env:PATH"
 .\.venv\Scripts\python.exe .\tools\prepare_avatar.py .\avatar.mp4 `
   --avatar-id host01_muse `
   --model musetalk `
+  --landmark-backend fan `
   --bbox-shift 0 `
   --musetalk-version v15
 ```
@@ -146,10 +147,13 @@ $env:LIVESTREAM_API_TOKEN="local-test-token"
   --output .\output\musetalk-omnivoice.mp4
 ```
 
-Nếu đường ghép quanh cằm chưa đẹp, tạo một avatar ID mới và thử
-`--bbox-shift -5` hoặc `--bbox-shift 5`. Không ghi đè avatar đang hoạt động
-trong lúc server chạy. Với RTX 5060 Ti, bắt đầu bằng `batch_size 4`; chỉ tăng
-lên `8` khi `nvidia-smi` cho thấy còn VRAM và log `inferfps` vẫn ổn định.
+`fan` dùng 68 điểm landmark để tạo crop đúng hình học mà MuseTalk đã
+huấn luyện; chế độ `detector` chỉ là fallback khi không thể cài FAN. Lần đầu
+dùng FAN sẽ tự tải checkpoint landmark. Nếu đường ghép quanh cằm chưa
+đẹp, tạo một avatar ID mới và thử `--bbox-shift -5` hoặc
+`--bbox-shift 5`. Không ghi đè avatar đang hoạt động trong lúc server chạy.
+Với RTX 5060 Ti, bắt đầu bằng `batch_size 4`; chỉ tăng lên `8` khi
+`nvidia-smi` cho thấy còn VRAM và log `inferfps` vẫn ổn định.
 
 ## 4. Chạy trên macOS để phát triển
 

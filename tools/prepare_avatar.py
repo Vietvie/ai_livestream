@@ -28,6 +28,12 @@ def main() -> int:
     parser.add_argument("--skip-normalize", action="store_true")
     parser.add_argument("--pads", default="0 10 0 0")
     parser.add_argument("--bbox-shift", type=int, default=0)
+    parser.add_argument(
+        "--landmark-backend",
+        choices=["fan", "detector"],
+        default="fan",
+        help="MuseTalk face crop backend (fan is recommended for lip accuracy)",
+    )
     parser.add_argument("--extra-margin", type=int, default=10)
     parser.add_argument("--parsing-mode", choices=["jaw", "raw", "neck"], default="jaw")
     parser.add_argument("--musetalk-version", choices=["v1", "v15"], default="v15")
@@ -80,6 +86,7 @@ def main() -> int:
                 "--file", str(normalized),
                 "--avatar_id", args.avatar_id,
                 "--bbox_shift", str(args.bbox_shift),
+                "--landmark_backend", args.landmark_backend,
                 "--extra_margin", str(args.extra_margin),
                 "--parsing_mode", args.parsing_mode,
                 "--version", args.musetalk_version,

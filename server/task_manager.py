@@ -93,6 +93,7 @@ class TaskManager:
                     avatar_id=task.avatar_id,
                     save_path=task.params.get('save_path', './data/avatars'),
                     bbox_shift=task.params.get('bbox_shift', 0),
+                    landmark_backend=task.params.get('landmark_backend', 'fan'),
                     extra_margin=task.params.get('extra_margin', 10),
                     parsing_mode=task.params.get('parsing_mode', 'jaw'),
                     version=task.params.get('version', 'v15'),

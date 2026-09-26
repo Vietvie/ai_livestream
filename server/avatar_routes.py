@@ -79,6 +79,7 @@ async def create_avatar_task(request):
             "img_size": int(params.get('img_size', 256)),
             "nosmooth": params.get('nosmooth', 'false').lower() == 'true' if isinstance(params.get('nosmooth'), str) else params.get('nosmooth', False),
             "bbox_shift": int(params.get('bbox_shift', 0)),
+            "landmark_backend": params.get('landmark_backend', 'fan'),
             "extra_margin": int(params.get('extra_margin', 10)),
             "parsing_mode": params.get('parsing_mode', 'jaw'),
             "version": params.get('version', 'v15'),

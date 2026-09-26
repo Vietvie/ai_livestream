@@ -6,9 +6,9 @@ if (-not (Test-Path $VenvPython)) {
     throw ".venv was not found. Run .\scripts\setup_windows.ps1 first."
 }
 
-& $VenvPython -m pip install --upgrade "huggingface_hub[hf_xet]>=1.23.0,<2.0"
+& $VenvPython -m pip install --upgrade "huggingface_hub[hf_xet]>=1.23.0,<2.0" "face-alignment==1.5.0"
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not install huggingface_hub."
+    throw "Could not install MuseTalk Python dependencies."
 }
 
 & $VenvPython -m pip check
@@ -21,7 +21,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "MuseTalk checkpoint download failed."
 }
 
-& $VenvPython -c "from diffusers import AutoencoderKL; from transformers import WhisperModel; print('MuseTalk dependencies: OK')"
+& $VenvPython -c "from diffusers import AutoencoderKL; from transformers import WhisperModel; import face_alignment; face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, device='cpu', compile=False); print('MuseTalk dependencies and FAN landmarks: OK')"
 if ($LASTEXITCODE -ne 0) {
     throw "MuseTalk dependency import check failed."
 }
