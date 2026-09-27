@@ -1,5 +1,8 @@
 # Cài đặt AI Livestream trên VPS Windows RTX 5060 Ti
 
+Nếu triển khai một GPU Server phục vụ nhiều OBS Client, nhiều avatar và nhiều
+voice riêng, xem [SERVER_CLIENT_VI.md](SERVER_CLIENT_VI.md).
+
 Tài liệu này hướng dẫn cài đặt và kiểm tra một luồng MuseTalk + OmniVoice.
 UDP loopback được dùng mặc định khi OBS chạy cùng VPS; khi chuyển OBS sang máy
 khác, cùng script khởi động có thể chuyển sang SRT bằng một tham số.

@@ -65,7 +65,9 @@ class SessionManager:
             sessionid = _rand_session_id()
             
         # 检查是否达到最大会话数
-        active_count = sum(1 for s in self.sessions.values() if s is not None)
+        # Include in-progress placeholders so concurrent client connects cannot
+        # all pass the limit before their expensive GPU sessions finish loading.
+        active_count = len(self.sessions)
         if active_count >= self.max_session:
             raise MaxSessionError(
                 f"Maximum session limit reached ({active_count}/{self.max_session})"
@@ -76,11 +78,15 @@ class SessionManager:
         self.sessions[sessionid] = None
 
         # 在线程池中构建 session（加载模型非常耗时）
-        avatar_session = await asyncio.get_event_loop().run_in_executor(
-            None, self.build_session_fn, sessionid, params
-        )
-        self.sessions[sessionid] = avatar_session
-        return sessionid
+        try:
+            avatar_session = await asyncio.get_event_loop().run_in_executor(
+                None, self.build_session_fn, sessionid, params
+            )
+            self.sessions[sessionid] = avatar_session
+            return sessionid
+        except Exception:
+            self.sessions.pop(sessionid, None)
+            raise
         
     def add_session(self, sessionid: str, avatar_session: BaseAvatar):
         """同步添加静态或外部管理的会话（供非服务端入口调用）"""

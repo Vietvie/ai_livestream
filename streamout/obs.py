@@ -95,11 +95,8 @@ class OBSOutput(BaseOutput):
         if self._uses_srt_relay:
             self._ensure_srt_relay()
         try:
-            self._container = av.open(
-                self._mux_url,
-                mode="w",
-                format=output_format,
-                options=container_options,
+            self._container = self._create_container(
+                output_format, container_options
             )
         except Exception as exc:
             # Windows PyAV wheels commonly omit libSRT even when the standalone
@@ -171,6 +168,15 @@ class OBSOutput(BaseOutput):
         self._pending_audio.clear()
         for audio, eventpoint in pending:
             self._encode_audio(audio, eventpoint)
+
+    def _create_container(self, output_format: str, container_options: dict):
+        """Open the mux target; memory-backed transports override this hook."""
+        return av.open(
+            self._mux_url,
+            mode="w",
+            format=output_format,
+            options=container_options,
+        )
 
     def _enable_srt_relay(self) -> None:
         self._uses_srt_relay = True

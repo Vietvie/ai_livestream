@@ -9,7 +9,7 @@ lip-sync pipeline.
 from __future__ import annotations
 
 from pathlib import Path
-from threading import RLock
+from threading import Lock, RLock
 import time
 
 import numpy as np
@@ -25,6 +25,11 @@ from utils.logger import logger
 @register("tts", "omnivoice")
 class OmniVoiceTTS(BaseTTS):
     """Run OmniVoice locally, with optional zero-shot voice cloning."""
+
+    # Multiple client sessions share the large GPU model. Voice prompts remain
+    # per instance, while generation is serialized by the shared model lock.
+    _shared_models = {}
+    _shared_models_guard = Lock()
 
     def __init__(self, opt, parent):
         super().__init__(opt, parent)
@@ -58,18 +63,29 @@ class OmniVoiceTTS(BaseTTS):
                 "omnivoice_dtype must be float16, bfloat16, or float32"
             )
 
-        logger.info(
-            "Loading OmniVoice model %s on %s (%s)",
-            self.model_id,
-            self.device,
-            dtype_name,
-        )
+        shared_key = (self.model_id, self.device, dtype_name)
         started = time.time()
-        self.model = OmniVoice.from_pretrained(
-            self.model_id,
-            device_map=self.device,
-            dtype=dtype,
-        )
+        with self._shared_models_guard:
+            shared = self._shared_models.get(shared_key)
+            if shared is None:
+                logger.info(
+                    "Loading shared OmniVoice model %s on %s (%s)",
+                    self.model_id,
+                    self.device,
+                    dtype_name,
+                )
+                shared = (
+                    OmniVoice.from_pretrained(
+                        self.model_id,
+                        device_map=self.device,
+                        dtype=dtype,
+                    ),
+                    RLock(),
+                )
+                self._shared_models[shared_key] = shared
+            else:
+                logger.info("Reusing shared OmniVoice model for client session")
+        self.model, self._model_lock = shared
         self.source_sample_rate = int(getattr(self.model, "sampling_rate", 24000))
         self.language = str(getattr(opt, "omnivoice_language", "vietnamese"))
         self.instruct = str(
@@ -84,7 +100,6 @@ class OmniVoiceTTS(BaseTTS):
         self.num_step = int(getattr(opt, "omnivoice_num_step", 16))
         if not 8 <= self.num_step <= 64:
             raise ValueError("omnivoice_num_step must be between 8 and 64")
-        self._model_lock = RLock()
         self.voice_prompt = None
         self.voice_prompt_info = None
 
@@ -250,10 +265,8 @@ class OmniVoiceTTS(BaseTTS):
             )
 
     def stop_tts(self):
-        # Release model memory during a clean server shutdown.
+        # The GPU model is shared by all client sessions and stays resident for
+        # the server lifetime. Only release this client's voice prompt.
         with self._model_lock:
             self.voice_prompt = None
             self.voice_prompt_info = None
-            self.model = None
-        if self.device.startswith("cuda") and self._torch.cuda.is_available():
-            self._torch.cuda.empty_cache()

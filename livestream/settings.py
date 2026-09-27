@@ -52,6 +52,7 @@ class ApiSettings:
             "/api/admin",
             "/api/avatar",
             "/api/livestream",
+            "/api/v1",
         ]
     )
 

@@ -118,7 +118,7 @@ def parse_args():
 
     # ─── 传输 ─────────────────────────────────────────────────────────
     parser.add_argument('--transport', type=str, default='webrtc',
-                        help="output: obs/rtcpush/webrtc/rtmp/virtualcam/null")
+                        help="output: broker/obs/rtcpush/webrtc/rtmp/virtualcam/null")
     parser.add_argument('--stun', type=str, default='stun:stun.freeswitch.org:3478',
                         help="stun server url")
     parser.add_argument('--push_url', type=str,

@@ -1,6 +1,7 @@
 __pycache__/
 build/
 .venv/
+.client-venv/
 bin/
 output/
 *.egg-info/

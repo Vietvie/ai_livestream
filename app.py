@@ -116,7 +116,11 @@ async def on_shutdown(app):
     orchestrator = app.get("livestream_orchestrator")
     if orchestrator:
         orchestrator.stop()
-    await rtc_manager.shutdown()
+    broker_service = app.get("broker_service")
+    if broker_service:
+        await broker_service.stop()
+    if rtc_manager:
+        await rtc_manager.shutdown()
 
 async def download_record(request):
     sessionid = request.match_info.get('sessionid')
@@ -275,6 +279,19 @@ def main():
     setup_routes(appasync)
     from server.livestream_routes import setup_livestream_routes
     setup_livestream_routes(appasync, livestream_orchestrator)
+
+    if opt.transport == 'broker':
+        from server.broker_routes import setup_broker_routes
+        from server.broker_service import BrokerService
+
+        broker_service = BrokerService(Path.cwd())
+        appasync["broker_service"] = broker_service
+        setup_broker_routes(appasync, broker_service)
+
+        async def start_broker(app):
+            app["broker_service"].start()
+
+        appasync.on_startup.append(start_broker)
 
     # Configure default CORS settings.
     cors = aiohttp_cors.setup(appasync, defaults={

@@ -32,6 +32,7 @@ api:
   # Chỉ bật true khi chạy nội bộ trên máy tin cậy.
   allow_unauthenticated: false
   protected_paths:
+    - /api/v1
     - /human
     - /humanaudio
     - /record
