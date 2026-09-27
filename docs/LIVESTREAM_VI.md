@@ -234,7 +234,7 @@ omnivoice_instruct: ''
 
 Hoặc không cần cấu hình: đặt một mẫu giọng tiếng Việt đã được phép
 sử dụng tại `<project>/voice.wav`. Khi khởi động với `--tts omnivoice`,
-hệ thống tự chuẩn hóa audio, dùng `vinai/PhoWhisper-small` để chép lời,
+hệ thống tự chuẩn hóa audio, dùng `vinai/PhoWhisper-medium` để chép lời,
 cache kết quả trong `data/voices/` và bật voice clone. Thay đổi `voice.wav`
 sẽ tự làm mới cache ở lần chạy kế tiếp.
 

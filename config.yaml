@@ -29,7 +29,7 @@ omnivoice_instruct: 'female, young adult, moderate pitch'
 omnivoice_ref_audio: ''        # optional 3-10 second clean WAV
 omnivoice_ref_text: ''         # exact transcript when ref_audio is used
 omnivoice_auto_voice: 'voice.wav' # auto-normalize/transcribe when this file exists
-omnivoice_asr_model: 'vinai/PhoWhisper-small'
+omnivoice_asr_model: 'vinai/PhoWhisper-medium' # more accurate reference transcript; downloaded once
 omnivoice_speed: 1.0
 omnivoice_num_step: 16         # 16 is a good realtime/quality starting point
 

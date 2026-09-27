@@ -23,7 +23,7 @@ DEFAULT_SOURCE = ROOT / "voice.wav"
 DEFAULT_AUDIO = ROOT / "data" / "voices" / "auto-voice.wav"
 DEFAULT_TEXT = ROOT / "data" / "voices" / "auto-voice.txt"
 DEFAULT_META = ROOT / "data" / "voices" / "auto-voice.json"
-DEFAULT_ASR_MODEL = "vinai/PhoWhisper-small"
+DEFAULT_ASR_MODEL = "vinai/PhoWhisper-medium"
 
 
 def _source_signature(source: Path, asr_model: str) -> dict:

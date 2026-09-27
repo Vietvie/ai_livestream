@@ -325,7 +325,8 @@ powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_window
 Lần chạy đầu, code tự thực hiện toàn bộ quy trình:
 
 1. Đọc `voice.wav`, trộn về mono, cắt im lặng đầu/cuối và chuẩn hóa 16 kHz.
-2. Tự tải `vinai/PhoWhisper-small` và chép lời tiếng Việt cục bộ.
+2. Tự tải `vinai/PhoWhisper-medium` và chép lời tiếng Việt cục bộ. Bản medium
+   lớn hơn nhưng giảm lỗi transcript làm voice clone bỏ hoặc đọc sai từ.
 3. Lưu audio và transcript vào `data\voices\auto-voice.*`.
 4. Giải phóng tiến trình ASR, sau đó mới nạp Wav2Lip/MuseTalk và OmniVoice.
 5. Cache kết quả; những lần sau không chạy ASR lại. Khi thay `voice.wav`,
@@ -341,7 +342,7 @@ Thử riêng giọng clone trước khi livestream:
   --ref-audio ".\data\voices\host.wav" `
   --ref-text "Nội dung được nói chính xác trong file mẫu." `
   --text "Xin chào, đây là bài kiểm tra giọng nói đã sao chép." `
-  --num-step 8 `
+  --num-step 16 `
   --output ".\output\voice-clone-test.wav"
 
 Start-Process .\output\voice-clone-test.wav
@@ -577,3 +578,18 @@ Giữ `--obs_video_encoder libx264`. CPU i7-12700K đủ để thử một luồ
 - Giảm `--batch_size` từ 4 xuống 2.
 - Giảm `omnivoice_num_step` trong `config.yaml` từ 16 xuống 8.
 - Chỉ chạy một session khi kiểm tra ban đầu.
+
+### Voice clone thỉnh thoảng mất chữ
+
+Preset OBS mặc định dùng 16 diffusion steps và tự chia nội dung dài thành các
+đoạn tối đa 120 ký tự. Transcript tham chiếu dùng PhoWhisper-medium; khi pull
+bản cấu hình mới, cache cũ của PhoWhisper-small tự hết hiệu lực và được tạo lại.
+Lần chạy đầu sẽ tải model ASR khoảng 3 GB, nhưng tiến trình ASR được giải phóng
+trước khi nạp OmniVoice nên không chiếm VRAM trong lúc livestream.
+
+Nếu vẫn có câu khó, tăng chất lượng lên 24 bước:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 `
+  -Model way2lip -AvatarId host01 -OmniVoiceNumStep 24
+```

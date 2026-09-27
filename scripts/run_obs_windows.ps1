@@ -12,7 +12,9 @@ param(
     [int]$UdpPort = 23000,
     [int]$SrtPort = 10080,
     [string]$SrtPassphrase = "MatKhauSRT123456",
-    [int]$RelayPort = 23001
+    [int]$RelayPort = 23001,
+    [ValidateRange(8, 64)]
+    [int]$OmniVoiceNumStep = 16
 )
 
 $ErrorActionPreference = "Stop"
@@ -100,6 +102,12 @@ if ($env:LIVESTREAM_SRT_PASSPHRASE) {
 if ($env:LIVESTREAM_OBS_MODE) {
     $ObsMode = $env:LIVESTREAM_OBS_MODE.ToLowerInvariant()
 }
+if ($env:LIVESTREAM_OMNIVOICE_NUM_STEP) {
+    $OmniVoiceNumStep = [int]$env:LIVESTREAM_OMNIVOICE_NUM_STEP
+}
+if ($OmniVoiceNumStep -lt 8 -or $OmniVoiceNumStep -gt 64) {
+    throw "OmniVoiceNumStep must be between 8 and 64."
+}
 if ($ObsMode -notin @("udp", "srt")) {
     throw "OBS mode must be udp or srt."
 }
@@ -139,6 +147,7 @@ if ($RequestedModel -in @("way2lip", "lip2way")) {
 }
 Write-Host "Avatar: $AvatarId"
 Write-Host "Batch size: $BatchSize"
+Write-Host "OmniVoice quality: $OmniVoiceNumStep diffusion steps"
 if ($VoiceRefAudio) {
     Write-Host "OmniVoice clone: enabled ($([System.IO.Path]::GetFileName($VoiceRefAudio)))"
 } elseif (Test-Path -LiteralPath (Join-Path $ProjectDir "voice.wav") -PathType Leaf) {
@@ -181,7 +190,7 @@ if ($VoiceRefAudio) {
     --batch_size $BatchSize `
     --max_session 1 `
     --tts omnivoice `
-    --omnivoice_num_step 8 `
+    --omnivoice_num_step $OmniVoiceNumStep `
     @VoiceCloneArgs
 
 exit $LASTEXITCODE

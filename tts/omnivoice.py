@@ -18,6 +18,7 @@ import soundfile as sf
 
 from registry import register
 from tts.base_tts import BaseTTS, State
+from tts.text_utils import split_synthesis_text
 from utils.logger import logger
 
 
@@ -81,6 +82,8 @@ class OmniVoiceTTS(BaseTTS):
         )
         self.speed = float(getattr(opt, "omnivoice_speed", 1.0))
         self.num_step = int(getattr(opt, "omnivoice_num_step", 16))
+        if not 8 <= self.num_step <= 64:
+            raise ValueError("omnivoice_num_step must be between 8 and 64")
         self._model_lock = RLock()
         self.voice_prompt = None
         self.voice_prompt_info = None
@@ -103,25 +106,51 @@ class OmniVoiceTTS(BaseTTS):
     def txt_to_audio(self, msg: tuple[str, dict]):
         text, text_event = msg
         started = time.time()
-        generation = {
-            "text": text,
+        base_generation = {
             "language": self.language,
             "speed": self.speed,
             "num_step": self.num_step,
         }
         try:
+            segments = split_synthesis_text(text)
+            if not segments:
+                return
+            generated_streams = []
             # OmniVoice prompt creation and inference share one model instance.
             # Serialize them so a remote voice change cannot corrupt an active
             # synthesis request.
             with self._model_lock:
                 if self.voice_prompt is not None:
-                    generation["voice_clone_prompt"] = self.voice_prompt
+                    base_generation["voice_clone_prompt"] = self.voice_prompt
                 elif self.instruct:
-                    generation["instruct"] = self.instruct
-                audio_items = self.model.generate(**generation)
-            if not audio_items:
-                raise RuntimeError("OmniVoice returned no audio")
-            stream = np.asarray(audio_items[0], dtype=np.float32).reshape(-1)
+                    base_generation["instruct"] = self.instruct
+                for segment in segments:
+                    generation = dict(base_generation, text=segment)
+                    audio_items = self.model.generate(**generation)
+                    if not audio_items:
+                        raise RuntimeError(
+                            f"OmniVoice returned no audio for segment: {segment}"
+                        )
+                    generated = np.asarray(
+                        audio_items[0], dtype=np.float32
+                    ).reshape(-1)
+                    if generated.size == 0:
+                        raise RuntimeError(
+                            f"OmniVoice returned empty audio for segment: {segment}"
+                        )
+                    generated_streams.append(generated)
+
+            # A small pause prevents adjacent generated segments from masking
+            # each other's final/initial phoneme in the realtime stream.
+            inter_segment_silence = np.zeros(
+                int(self.source_sample_rate * 0.08), dtype=np.float32
+            )
+            stream_parts = []
+            for index, generated in enumerate(generated_streams):
+                if index:
+                    stream_parts.append(inter_segment_silence)
+                stream_parts.append(generated)
+            stream = np.concatenate(stream_parts)
             if self.source_sample_rate != self.sample_rate and stream.size:
                 stream = resampy.resample(
                     stream,
@@ -130,9 +159,11 @@ class OmniVoiceTTS(BaseTTS):
                 ).astype(np.float32)
             self._enqueue_audio(stream, text, text_event)
             logger.info(
-                "OmniVoice TTS time: %.3fs for %.2fs audio",
+                "OmniVoice TTS time: %.3fs for %.2fs audio (%d segment(s), %d steps)",
                 time.time() - started,
                 stream.size / self.sample_rate,
+                len(segments),
+                self.num_step,
             )
         except Exception:
             logger.exception("OmniVoice synthesis failed")
