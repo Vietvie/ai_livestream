@@ -74,6 +74,9 @@ class OBSOutput(BaseOutput):
 
     def _open_output(self, height: int, width: int) -> None:
         output_format = "flv" if self.push_url.lower().startswith("rtmp") else "mpegts"
+        container_options = {"flush_packets": "1"}
+        if output_format == "mpegts":
+            container_options["mpegts_flags"] = "+resend_headers"
         try:
             av.Codec(self.video_encoder, "w")
         except Exception:
@@ -96,7 +99,7 @@ class OBSOutput(BaseOutput):
                 self._mux_url,
                 mode="w",
                 format=output_format,
-                options={"flush_packets": "1"},
+                options=container_options,
             )
         except Exception as exc:
             # Windows PyAV wheels commonly omit libSRT even when the standalone
@@ -114,7 +117,7 @@ class OBSOutput(BaseOutput):
                     self._mux_url,
                     mode="w",
                     format="mpegts",
-                    options={"flush_packets": "1"},
+                    options=container_options,
                 )
             else:
                 raise
@@ -171,9 +174,10 @@ class OBSOutput(BaseOutput):
 
     def _enable_srt_relay(self) -> None:
         self._uses_srt_relay = True
-        self._mux_url = (
-            f"udp://127.0.0.1:{self._srt_relay_port}?pkt_size=1316"
-        )
+        # TCP loopback keeps the initial MPEG-TS/H.264 headers intact.  With
+        # UDP the Python sender can beat FFmpeg to the socket on Windows, which
+        # drops SPS/PPS and produces "non-existing PPS" forever.
+        self._mux_url = f"tcp://127.0.0.1:{self._srt_relay_port}"
         self._ensure_srt_relay()
 
     def _ensure_srt_relay(self) -> None:
@@ -187,10 +191,7 @@ class OBSOutput(BaseOutput):
                 "PyAV has no SRT support and ffmpeg was not found in PATH"
             )
 
-        input_url = (
-            f"udp://127.0.0.1:{self._srt_relay_port}"
-            "?fifo_size=1000000&overrun_nonfatal=1"
-        )
+        input_url = f"tcp://127.0.0.1:{self._srt_relay_port}?listen=1"
         command = [
             ffmpeg,
             "-hide_banner",
@@ -215,8 +216,12 @@ class OBSOutput(BaseOutput):
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
         )
+        # Give FFmpeg a brief moment to bind its local TCP listener before
+        # PyAV connects.  A slower startup is still handled by the normal
+        # output retry path.
+        time.sleep(0.35)
         logger.info(
-            "[OBS] FFmpeg SRT relay started on local UDP port %d",
+            "[OBS] FFmpeg SRT relay started on local TCP port %d",
             self._srt_relay_port,
         )
 

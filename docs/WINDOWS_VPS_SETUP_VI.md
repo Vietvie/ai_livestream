@@ -270,7 +270,7 @@ Script tự thực hiện các việc sau:
 - Giới hạn số thread CPU để MuseTalk không chiếm 100% CPU.
 - Dùng `h264_nvenc`, MuseTalk, OmniVoice 8 bước và `batch_size=4`.
 - Mở SRT listener trên UDP `10080`.
-- Nếu PyAV Windows thiếu SRT, tự chạy FFmpeg relay qua loopback `23001`.
+- Nếu PyAV Windows thiếu SRT, tự chạy FFmpeg relay qua TCP loopback `23001`.
 - In sẵn hai URL OBS local và remote ra màn hình.
 
 ### OBS đang chạy trên cùng VPS
@@ -425,7 +425,7 @@ ffmpeg -protocols | Select-String srt
 ```
 
 Khi fallback hoạt động, log sẽ có dòng
-`[OBS] FFmpeg SRT relay started on local UDP port 23001`. Nếu port này đang
+`[OBS] FFmpeg SRT relay started on local TCP port 23001`. Nếu port này đang
 được chương trình khác sử dụng, thêm `--obs_srt_relay_port 23002` vào lệnh chạy.
 
 ### `h264_nvenc` không khả dụng
