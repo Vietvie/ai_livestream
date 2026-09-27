@@ -1,3 +1,2 @@
-# Lightweight dependencies for an OBS relay machine without a GPU.
-requests>=2.31.0
-imageio-ffmpeg>=0.5.1
+# Compatibility entry point. The standalone client owns its dependencies.
+-r client/requirements.txt

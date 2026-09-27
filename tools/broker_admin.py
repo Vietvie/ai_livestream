@@ -24,6 +24,11 @@ def main() -> int:
     register.add_argument("client_id")
     register.add_argument("--avatar", required=True)
     register.add_argument("--voice", default="")
+    register.add_argument(
+        "--rotate-stream-token",
+        action="store_true",
+        help="Issue a new OBS stream token and invalidate the old token",
+    )
 
     upload = subparsers.add_parser("upload-voice")
     upload.add_argument("voice_id")
@@ -54,7 +59,11 @@ def main() -> int:
         response = requests.put(
             f"{base}/api/v1/clients/{args.client_id}",
             headers=headers,
-            json={"avatar_id": args.avatar, "voice_id": args.voice},
+            json={
+                "avatar_id": args.avatar,
+                "voice_id": args.voice,
+                "rotate_stream_token": args.rotate_stream_token,
+            },
             timeout=60,
         )
     elif args.command == "upload-voice":

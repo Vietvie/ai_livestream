@@ -58,19 +58,33 @@ def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
 
     async def get_client(request):
         try:
-            return _json(asdict(service.get_profile(request.match_info["client_id"])))
+            return _json(
+                service.profile_view(
+                    service.get_profile(request.match_info["client_id"])
+                )
+            )
         except Exception as exc:
             return _error(exc)
 
     async def put_client(request):
         try:
             payload = await _body(request)
-            profile = service.upsert_profile(
+            rotate_value = payload.get("rotate_stream_token", False)
+            rotate_stream_token = rotate_value is True or str(
+                rotate_value
+            ).strip().lower() in {"1", "true", "yes"}
+            profile, stream_token = service.upsert_profile(
                 request.match_info["client_id"],
                 str(payload.get("avatar_id", "")),
                 str(payload.get("voice_id", "")),
+                rotate_stream_token,
             )
-            return _json(asdict(profile))
+            result = service.profile_view(profile)
+            if stream_token:
+                # Only the hash is stored. Plaintext is returned once when the
+                # client is created or its stream token is explicitly rotated.
+                result["stream_token"] = stream_token
+            return _json(result)
         except Exception as exc:
             return _error(exc)
 
@@ -137,14 +151,18 @@ def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
         subscriber = None
         broadcast = None
         try:
-            service.get_profile(client_id)
+            authorization = request.headers.get("Authorization", "")
+            scheme, _, token = authorization.partition(" ")
+            if scheme.lower() != "bearer" or not token:
+                raise PermissionError("A client stream token is required")
+            service.authorize_stream(client_id, token)
             session_id = service.session_id(client_id)
             broadcast = broadcast_registry.get(session_id)
             subscriber = broadcast.subscribe()
         except Exception as exc:
             if broadcast is not None and subscriber is not None:
                 broadcast.unsubscribe(subscriber)
-            return _error(exc)
+            return _error(exc, status=403 if isinstance(exc, PermissionError) else 400)
 
         response = web.StreamResponse(
             status=200,

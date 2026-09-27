@@ -86,8 +86,10 @@ Linux CUDA 环境搭建参考: <https://zhuanlan.zhihu.com/p/674972886>
 
 ## 2. 快速开始
 
-多客户端 GPU Server、独立 avatar/voice、FIFO 队列和远程 OBS Client 的部署说明：
+多客户端 GPU Server、独立 avatar/voice、FIFO 队列和独立 OBS Client 源码：
 [docs/SERVER_CLIENT_VI.md](docs/SERVER_CLIENT_VI.md)
+
+可单独分发的轻量 OBS Client 源码：[client/README.md](client/README.md)
 
 ### 2.1 下载模型
 

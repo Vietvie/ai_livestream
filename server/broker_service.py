@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass, field
+import hashlib
 from io import BytesIO
 import json
 from pathlib import Path
 import re
+import secrets
 import subprocess
 import sys
 from threading import Event, Thread
@@ -39,6 +41,7 @@ class ClientProfile:
     client_id: str
     avatar_id: str
     voice_id: str = ""
+    stream_token_hash: str = ""
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -122,7 +125,19 @@ class BrokerService:
         self._managed_sessions.clear()
 
     def list_profiles(self) -> list[dict]:
-        return [asdict(item) for item in self.profiles.values()]
+        return [self.profile_view(item) for item in self.profiles.values()]
+
+    @staticmethod
+    def profile_view(profile: ClientProfile) -> dict:
+        """Return client metadata without exposing the persisted token hash."""
+        return {
+            "client_id": profile.client_id,
+            "avatar_id": profile.avatar_id,
+            "voice_id": profile.voice_id,
+            "has_stream_token": bool(profile.stream_token_hash),
+            "created_at": profile.created_at,
+            "updated_at": profile.updated_at,
+        }
 
     def get_profile(self, client_id: str) -> ClientProfile:
         client_id = validate_id(client_id, "client_id")
@@ -132,8 +147,12 @@ class BrokerService:
         return profile
 
     def upsert_profile(
-        self, client_id: str, avatar_id: str, voice_id: str = ""
-    ) -> ClientProfile:
+        self,
+        client_id: str,
+        avatar_id: str,
+        voice_id: str = "",
+        rotate_stream_token: bool = False,
+    ) -> tuple[ClientProfile, str]:
         client_id = validate_id(client_id, "client_id")
         avatar_id = validate_id(avatar_id, "avatar_id")
         voice_id = validate_id(voice_id, "voice_id") if voice_id else ""
@@ -146,10 +165,16 @@ class BrokerService:
 
         previous = self.profiles.get(client_id)
         now = time.time()
+        stream_token = ""
+        stream_token_hash = previous.stream_token_hash if previous else ""
+        if rotate_stream_token or not stream_token_hash:
+            stream_token = secrets.token_urlsafe(32)
+            stream_token_hash = hashlib.sha256(stream_token.encode("utf-8")).hexdigest()
         profile = ClientProfile(
             client_id=client_id,
             avatar_id=avatar_id,
             voice_id=voice_id,
+            stream_token_hash=stream_token_hash,
             created_at=previous.created_at if previous else now,
             updated_at=now,
         )
@@ -159,6 +184,15 @@ class BrokerService:
             previous.avatar_id != avatar_id or previous.voice_id != voice_id
         ):
             self.remove_session(client_id)
+        return profile, stream_token
+
+    def authorize_stream(self, client_id: str, token: str) -> ClientProfile:
+        profile = self.get_profile(client_id)
+        supplied_hash = hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
+        if not profile.stream_token_hash or not secrets.compare_digest(
+            supplied_hash, profile.stream_token_hash
+        ):
+            raise PermissionError("Invalid stream token for this client")
         return profile
 
     def delete_profile(self, client_id: str) -> None:

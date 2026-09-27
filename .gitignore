@@ -2,6 +2,9 @@ __pycache__/
 build/
 .venv/
 .client-venv/
+/client/.venv/
+/client/bin/
+/client/config.json
 bin/
 output/
 *.egg-info/

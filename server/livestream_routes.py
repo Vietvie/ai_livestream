@@ -43,6 +43,13 @@ def setup_livestream_routes(app, orchestrator):
     async def protect_upstream_control_api(request, handler):
         if request.method == "OPTIONS":
             return await handler(request)
+        # Streaming uses a per-client token instead of the administrator token.
+        if (
+            request.method == "GET"
+            and request.path.startswith("/api/v1/clients/")
+            and request.path.endswith("/stream.ts")
+        ):
+            return await handler(request)
         protected = tuple(orchestrator.settings.api.protected_paths)
         if protected and request.path.startswith(protected):
             denied = auth_error(request)

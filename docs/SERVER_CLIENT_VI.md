@@ -29,6 +29,8 @@ OBS Client: FFmpeg copy stream -> udp://127.0.0.1:23000 -> OBS Media Source
 - Mỗi stream dùng NVENC mặc định để tránh CPU tăng cao khi có nhiều client.
 - Mỗi client có một luồng MPEG-TS riêng nên không thể nhận nhầm hình hoặc tiếng
   của client khác.
+- Mỗi client có `stream_token` riêng và chỉ được mở stream của chính nó. Token
+  quản trị server không được gửi cho người dùng OBS Client.
 
 Một tiến trình server chỉ chạy một loại backend avatar. Nếu cần đồng thời
 Wav2Lip và MuseTalk, chạy hai server ở hai GPU hoặc hai port khác nhau.
@@ -111,24 +113,70 @@ thêm `--text "Nội dung chính xác trong file WAV."` để bỏ qua ASR.
   --voice voice-minh
 ```
 
+Khi tạo client lần đầu, kết quả trả về có `stream_token`. Hãy lưu token này để
+đưa vào `config.json` của đúng OBS Client. Server chỉ lưu hash nên không thể
+hiển thị lại token cũ. Nếu làm mất token, tạo token mới:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\broker_admin.py register-client shop-lan `
+  --avatar lan `
+  --voice voice-lan `
+  --rotate-stream-token
+```
+
+Token cũ mất hiệu lực ngay sau khi rotate.
+
 Có thể cho hai client dùng chung avatar nhưng voice khác, hoặc dùng chung voice
 nhưng avatar khác. Đăng ký lại cùng `client_id` sẽ cập nhật profile và khởi tạo
 lại đúng session đó. Hãy dừng OBS Client và chờ job của client hoàn tất trước
 khi đổi avatar/voice để không cắt luồng đang phát.
 
-## 6. Cài OBS Client trên máy phát livestream
+## 6. Tạo gói source OBS Client riêng
 
-Máy client không cần CUDA, model AI hoặc GPU inference. Clone/pull repo rồi chạy:
+Source GPU Server là toàn bộ repo chính. Source client độc lập nằm tại
+`client/`. Trên máy server hoặc máy phát triển,
+đóng gói thành ZIP chỉ chứa client:
 
 ```powershell
 cd C:\AI_LIVESTREAM
-powershell -ExecutionPolicy Bypass -File .\scripts\setup_obs_client_windows.ps1
-$env:LIVESTREAM_API_TOKEN="THAY_BANG_TOKEN_GIONG_SERVER"
+.\.venv\Scripts\python.exe .\tools\build_obs_client_package.py
+```
 
-powershell -ExecutionPolicy Bypass -File .\scripts\run_obs_client_windows.ps1 `
-  -ServerUrl "http://IP_GPU_SERVER:8010" `
-  -ClientId "shop-lan" `
-  -UdpPort 23000
+File tạo ra:
+
+```text
+C:\AI_LIVESTREAM\dist\AI_LIVESTREAM_OBS_CLIENT.zip
+```
+
+ZIP không chứa server, model, avatar, voice, CUDA hoặc token. Gửi ZIP này cho
+người dùng OBS; không cần cấp quyền truy cập repo server.
+
+## 7. Cài OBS Client trên máy phát livestream
+
+Máy client chỉ cần Python 3.12 và OBS Studio. Giải nén ZIP, sau đó chạy:
+
+```powershell
+cd C:\AI_LIVESTREAM_CLIENT
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+notepad .\config.json
+```
+
+Điền thông tin riêng được server cấp:
+
+```json
+{
+  "server_url": "http://IP_GPU_SERVER:8010",
+  "client_id": "shop-lan",
+  "stream_token": "TOKEN_RIENG_CUA_SHOP_LAN",
+  "udp_port": 23000,
+  "reconnect_delay": 2.0
+}
+```
+
+Khởi động:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
 Client tự kết nối lại khi mạng đứt và chỉ copy H.264/AAC, không encode lại.
@@ -143,7 +191,7 @@ Trong OBS tạo **Media Source**:
 Mỗi máy OBS có thể dùng port 23000. Nếu chạy nhiều OBS Client trên cùng một
 máy, dùng các port 23000, 23002, 23004 và tạo Media Source tương ứng.
 
-## 7. Gửi yêu cầu TTS/lip-sync vào hàng chờ
+## 8. Gửi yêu cầu TTS/lip-sync vào hàng chờ
 
 Từ server hoặc bất kỳ máy nào có `broker_admin.py`:
 
@@ -166,13 +214,16 @@ Response trả về `job_id`. Kiểm tra job và hàng chờ:
 
 Trạng thái job: `queued`, `waiting_client`, `running`, `completed` hoặc `failed`.
 
-## 8. API chính
+## 9. API chính
 
-Tất cả endpoint yêu cầu header:
+Các endpoint quản trị yêu cầu header:
 
 ```text
 Authorization: Bearer <LIVESTREAM_API_TOKEN>
 ```
+
+Đây là token quản trị, chỉ dùng cho API quản lý và tạo job. Riêng endpoint
+`stream.ts` dùng `stream_token` của client tương ứng.
 
 | Method | Endpoint | Chức năng |
 |---|---|---|
@@ -189,7 +240,7 @@ Authorization: Bearer <LIVESTREAM_API_TOKEN>
 Body tạo client:
 
 ```json
-{"avatar_id": "lan", "voice_id": "voice-lan"}
+{"avatar_id": "lan", "voice_id": "voice-lan", "rotate_stream_token": false}
 ```
 
 Body tạo job:
@@ -198,7 +249,7 @@ Body tạo job:
 {"client_id": "shop-lan", "text": "Xin chào mọi người."}
 ```
 
-## 9. Giới hạn và hướng mở rộng
+## 10. Giới hạn và hướng mở rộng
 
 - FIFO hiện là hàng chờ trong RAM; profile và voice được lưu trên SSD. Khi
   restart server, job đang chờ không được phục hồi.
