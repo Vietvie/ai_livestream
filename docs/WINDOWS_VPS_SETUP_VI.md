@@ -273,6 +273,28 @@ Mặc định script dùng UDP local và tự thực hiện các việc sau:
 - Xuất MPEG-TS trực tiếp tới UDP loopback `23000`.
 - In sẵn URL cần nhập trong OBS.
 
+### So sánh Wav2Lip (`way2lip`) với MuseTalk
+
+LiveTalking đặt tên backend gốc là `wav2lip`. Script cũng chấp nhận
+`way2lip` là tên alias thử nghiệm; cả hai đều dùng checkpoint
+`models\wav2lip.pth` và avatar Wav2Lip đã chuẩn bị.
+
+Chạy Wav2Lip với avatar `host01`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -Model way2lip -AvatarId host01
+```
+
+Chuyển lại MuseTalk:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -Model musetalk -AvatarId host01_muse_fan
+```
+
+Cả hai lệnh mặc định xuất UDP local tới `127.0.0.1:23000`, vì vậy
+không cần thay Media Source trong OBS. `-LipSyncOffsetFrames` chỉ hiệu lực
+với MuseTalk.
+
 ### OBS đang chạy trên cùng VPS
 
 Trong OBS thêm **Media Source**:

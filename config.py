@@ -59,7 +59,10 @@ def parse_args():
 
     # ─── 数字人模型 ────────────────────────────────────────────────────
     parser.add_argument('--model', type=str, default='wav2lip',
-                        help="avatar model: musetalk/wav2lip/ultralight")
+                        help=(
+                            "avatar model: musetalk/wav2lip/ultralight "
+                            "(experimental aliases: way2lip/lip2way -> wav2lip)"
+                        ))
     parser.add_argument('--avatar_id', type=str, default='wav2lip256_avatar1',
                         help="avatar id in data/avatars")
     parser.add_argument('--batch_size', type=int, default=16, help="infer batch")

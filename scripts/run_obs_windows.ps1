@@ -1,8 +1,11 @@
 param(
-    [string]$AvatarId = "host01_muse_fan",
+    [ValidateSet("musetalk", "wav2lip", "way2lip", "lip2way", "ultralight")]
+    [string]$Model = "musetalk",
+    [string]$AvatarId = "",
     [ValidateSet("udp", "srt")]
     [string]$ObsMode = "udp",
     [int]$LipSyncOffsetFrames = 1,
+    [int]$BatchSize = 0,
     [int]$UdpPort = 23000,
     [int]$SrtPort = 10080,
     [string]$SrtPassphrase = "MatKhauSRT123456",
@@ -30,8 +33,27 @@ if (-not $env:LIVESTREAM_API_TOKEN) {
     Write-Warning "Using the test API token: local-test-token"
 }
 
+if ($env:LIVESTREAM_MODEL) {
+    $Model = $env:LIVESTREAM_MODEL.ToLowerInvariant()
+}
+if ($Model -notin @("musetalk", "wav2lip", "way2lip", "lip2way", "ultralight")) {
+    throw "Model must be musetalk, wav2lip, way2lip, lip2way, or ultralight."
+}
+$RequestedModel = $Model
+$RuntimeModel = if ($Model -in @("way2lip", "lip2way")) { "wav2lip" } else { $Model }
+
 if ($env:LIVESTREAM_AVATAR_ID) {
     $AvatarId = $env:LIVESTREAM_AVATAR_ID
+}
+if (-not $AvatarId) {
+    $AvatarId = switch ($RuntimeModel) {
+        "musetalk" { "host01_muse_fan" }
+        "wav2lip" { "host01" }
+        "ultralight" { "ultralight_avatar1" }
+    }
+}
+if ($BatchSize -le 0) {
+    $BatchSize = if ($RuntimeModel -eq "wav2lip") { 8 } else { 4 }
 }
 if ($env:LIVESTREAM_SRT_PORT) {
     $SrtPort = [int]$env:LIVESTREAM_SRT_PORT
@@ -75,9 +97,16 @@ $VideoEncoder = if ($env:LIVESTREAM_OBS_ENCODER) {
     "h264_nvenc"
 }
 
+Write-Host "Model: $RequestedModel (runtime backend: $RuntimeModel)"
+if ($RequestedModel -in @("way2lip", "lip2way")) {
+    Write-Warning "$RequestedModel is an alias for LiveTalking's Wav2Lip backend."
+}
 Write-Host "Avatar: $AvatarId"
+Write-Host "Batch size: $BatchSize"
 Write-Host "OBS mode: $ObsMode"
-Write-Host "MuseTalk lip-sync correction: $LipSyncOffsetFrames frame(s) ($($LipSyncOffsetFrames * 40) ms)"
+if ($RuntimeModel -eq "musetalk") {
+    Write-Host "MuseTalk lip-sync correction: $LipSyncOffsetFrames frame(s) ($($LipSyncOffsetFrames * 40) ms)"
+}
 if ($ObsMode -eq "udp") {
     Write-Host "OBS local Input: udp://127.0.0.1:$UdpPort"
 } else {
@@ -95,10 +124,10 @@ Write-Host "OBS Input Format: mpegts"
     --obs_video_encoder $VideoEncoder `
     --obs_video_bitrate 3000000 `
     --obs_srt_relay_port $RelayPort `
-    --model musetalk `
+    --model $RequestedModel `
     --musetalk_sync_offset_frames $LipSyncOffsetFrames `
     --avatar_id $AvatarId `
-    --batch_size 4 `
+    --batch_size $BatchSize `
     --max_session 1 `
     --tts omnivoice `
     --omnivoice_num_step 8

@@ -21,7 +21,12 @@ def main() -> int:
     )
     parser.add_argument("video", help="Source presenter video")
     parser.add_argument("--avatar-id", required=True)
-    parser.add_argument("--model", choices=["wav2lip", "musetalk"], default="wav2lip")
+    parser.add_argument(
+        "--model",
+        choices=["wav2lip", "way2lip", "lip2way", "musetalk"],
+        default="wav2lip",
+        help="Avatar backend; way2lip/lip2way are aliases for wav2lip",
+    )
     parser.add_argument("--fps", type=int, default=25)
     parser.add_argument("--width", type=int, default=720)
     parser.add_argument("--height", type=int, default=1280)
@@ -65,7 +70,7 @@ def main() -> int:
             ]
         )
 
-    if args.model == "wav2lip":
+    if args.model in ("wav2lip", "way2lip", "lip2way"):
         run(
             [
                 sys.executable,

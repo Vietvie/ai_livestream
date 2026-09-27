@@ -138,6 +138,23 @@ def main():
         'ultralight': 'avatars.ultralight_avatar',
     }
     import importlib
+    requested_model = str(opt.model).strip().lower()
+    if requested_model in ('way2lip', 'lip2way'):
+        # LiveTalking's actual audio-to-lip backend is named Wav2Lip.
+        logger.warning(
+            "Experimental model alias '%s' maps to LiveTalking's "
+            "'wav2lip' backend",
+            requested_model,
+        )
+        requested_model = 'wav2lip'
+    if requested_model not in _avatar_modules:
+        supported = ', '.join(
+            sorted((*_avatar_modules.keys(), 'way2lip', 'lip2way'))
+        )
+        raise ValueError(
+            f"Unsupported avatar model '{opt.model}'. Supported models: {supported}"
+        )
+    opt.model = requested_model
     avatar_mod = importlib.import_module(_avatar_modules[opt.model])
     load_model = avatar_mod.load_model
     load_avatar = avatar_mod.load_avatar
