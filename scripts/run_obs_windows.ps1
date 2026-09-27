@@ -1,5 +1,8 @@
 param(
     [string]$AvatarId = "host01_muse_fan",
+    [ValidateSet("udp", "srt")]
+    [string]$ObsMode = "udp",
+    [int]$UdpPort = 23000,
     [int]$SrtPort = 10080,
     [string]$SrtPassphrase = "MatKhauSRT123456",
     [int]$RelayPort = 23001
@@ -35,22 +38,34 @@ if ($env:LIVESTREAM_SRT_PORT) {
 if ($env:LIVESTREAM_SRT_PASSPHRASE) {
     $SrtPassphrase = $env:LIVESTREAM_SRT_PASSPHRASE
 }
-if ($SrtPassphrase.Length -lt 10 -or $SrtPassphrase.Length -gt 79) {
-    throw "SRT passphrase must contain 10-79 characters."
+if ($env:LIVESTREAM_OBS_MODE) {
+    $ObsMode = $env:LIVESTREAM_OBS_MODE.ToLowerInvariant()
 }
-
-$Ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
-if (-not $Ffmpeg) {
-    throw "ffmpeg was not found. Run .\scripts\setup_windows.ps1 first."
+if ($ObsMode -notin @("udp", "srt")) {
+    throw "OBS mode must be udp or srt."
 }
-$FfmpegProtocols = (& ffmpeg -hide_banner -protocols 2>&1 | Out-String)
-if ($FfmpegProtocols -notmatch "(?m)^\s+srt\s*$") {
-    throw "The installed ffmpeg build does not include the SRT protocol."
+if ($env:LIVESTREAM_OBS_URL -match "^srt://") {
+    $ObsMode = "srt"
+} elseif ($env:LIVESTREAM_OBS_URL -match "^udp://") {
+    $ObsMode = "udp"
 }
 
 $ObsUrl = if ($env:LIVESTREAM_OBS_URL) {
     $env:LIVESTREAM_OBS_URL
+} elseif ($ObsMode -eq "udp") {
+    "udp://127.0.0.1:${UdpPort}?pkt_size=1316"
 } else {
+    if ($SrtPassphrase.Length -lt 10 -or $SrtPassphrase.Length -gt 79) {
+        throw "SRT passphrase must contain 10-79 characters."
+    }
+    $Ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
+    if (-not $Ffmpeg) {
+        throw "ffmpeg was not found. Run .\scripts\setup_windows.ps1 first."
+    }
+    $FfmpegProtocols = (& ffmpeg -hide_banner -protocols 2>&1 | Out-String)
+    if ($FfmpegProtocols -notmatch "(?m)^\s+srt\s*$") {
+        throw "The installed ffmpeg build does not include the SRT protocol."
+    }
     "srt://0.0.0.0:${SrtPort}?mode=listener&transtype=live&latency=500000&pkt_size=1316&passphrase=${SrtPassphrase}&pbkeylen=16"
 }
 $VideoEncoder = if ($env:LIVESTREAM_OBS_ENCODER) {
@@ -58,12 +73,17 @@ $VideoEncoder = if ($env:LIVESTREAM_OBS_ENCODER) {
 } else {
     "h264_nvenc"
 }
-$LocalObsUrl = "srt://127.0.0.1:${SrtPort}?mode=caller&transtype=live&latency=500000&passphrase=${SrtPassphrase}&pbkeylen=16"
-$RemoteObsUrl = "srt://IP_PUBLIC_VPS:${SrtPort}?mode=caller&transtype=live&latency=500000&passphrase=${SrtPassphrase}&pbkeylen=16"
 
 Write-Host "Avatar: $AvatarId"
-Write-Host "OBS local Input:  $LocalObsUrl"
-Write-Host "OBS remote Input: $RemoteObsUrl"
+Write-Host "OBS mode: $ObsMode"
+if ($ObsMode -eq "udp") {
+    Write-Host "OBS local Input: udp://127.0.0.1:$UdpPort"
+} else {
+    $LocalObsUrl = "srt://127.0.0.1:${SrtPort}?mode=caller&transtype=live&latency=500000&passphrase=${SrtPassphrase}&pbkeylen=16"
+    $RemoteObsUrl = "srt://IP_PUBLIC_VPS:${SrtPort}?mode=caller&transtype=live&latency=500000&passphrase=${SrtPassphrase}&pbkeylen=16"
+    Write-Host "OBS local Input:  $LocalObsUrl"
+    Write-Host "OBS remote Input: $RemoteObsUrl"
+}
 Write-Host "OBS Input Format: mpegts"
 
 & $VenvPython app.py `

@@ -1,8 +1,8 @@
 # Cài đặt AI Livestream trên VPS Windows RTX 5060 Ti
 
-Tài liệu này hướng dẫn cài đặt và kiểm tra một luồng MuseTalk + OmniVoice,
-sau đó truyền video H.264 và audio AAC bằng SRT tới OBS trên cùng VPS hoặc
-OBS ở máy khác. Cùng một lệnh khởi động được dùng cho cả hai trường hợp.
+Tài liệu này hướng dẫn cài đặt và kiểm tra một luồng MuseTalk + OmniVoice.
+UDP loopback được dùng mặc định khi OBS chạy cùng VPS; khi chuyển OBS sang máy
+khác, cùng script khởi động có thể chuyển sang SRT bằng một tham số.
 
 Quy trình không dùng Conda và không yêu cầu chạy `Activate.ps1`. Mọi lệnh
 Python đều gọi trực tiếp `.venv\Scripts\python.exe` để tránh lỗi PowerShell
@@ -263,15 +263,14 @@ không cần khai báo lại `PATH` và không cần mở thêm terminal relay:
 powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1
 ```
 
-Script tự thực hiện các việc sau:
+Mặc định script dùng UDP local và tự thực hiện các việc sau:
 
 - Dùng `.venv\Scripts\python.exe` đúng của dự án.
 - Thêm `C:\AI_LIVESTREAM\bin` vào `PATH`.
 - Giới hạn số thread CPU để MuseTalk không chiếm 100% CPU.
 - Dùng `h264_nvenc`, MuseTalk, OmniVoice 8 bước và `batch_size=4`.
-- Mở SRT listener trên UDP `10080`.
-- Nếu PyAV Windows thiếu SRT, tự chạy FFmpeg relay qua TCP loopback `23001`.
-- In sẵn hai URL OBS local và remote ra màn hình.
+- Xuất MPEG-TS trực tiếp tới UDP loopback `23000`.
+- In sẵn URL cần nhập trong OBS.
 
 ### OBS đang chạy trên cùng VPS
 
@@ -281,17 +280,23 @@ Trong OBS thêm **Media Source**:
 - Đặt **Input** là:
 
 ```text
-srt://127.0.0.1:10080?mode=caller&transtype=live&latency=500000&passphrase=MatKhauSRT123456&pbkeylen=16
+udp://127.0.0.1:23000
 ```
 
 - Đặt **Input Format** là `mpegts`.
 - Bật khởi động lại phát khi source trở thành active.
 
-Không cần mở firewall khi OBS chạy trên cùng VPS.
+Không cần mở firewall và không dùng FFmpeg relay khi OBS chạy trên cùng VPS.
 
 ### OBS chạy ở máy khác
 
-Chỉ khi dùng OBS ở máy khác, mở UDP `10080` trong Windows Firewall:
+Khi chuyển OBS sang máy khác, chạy script ở chế độ SRT:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -ObsMode srt
+```
+
+Sau đó mở UDP `10080` trong Windows Firewall:
 
 ```powershell
 New-NetFirewallRule `
@@ -309,14 +314,14 @@ trang quản trị VPS. Trên OBS máy khác dùng **Media Source** với Input:
 srt://IP_PUBLIC_VPS:10080?mode=caller&transtype=live&latency=500000&passphrase=MatKhauSRT123456&pbkeylen=16
 ```
 
-Input Format vẫn là `mpegts`. Không thay đổi lệnh chạy ứng dụng. Listener này
+Input Format vẫn là `mpegts`. Không cần thay đổi các tham số model/TTS. Listener này
 phục vụ một OBS tại một thời điểm; hãy đóng Media Source local trước khi kết
 nối từ OBS máy khác.
 
 Đổi `MatKhauSRT123456` trước khi dùng thật bằng tham số `-SrtPassphrase`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -SrtPassphrase "MatKhauMoiToiThieu10KyTu"
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -ObsMode srt -SrtPassphrase "MatKhauMoiToiThieu10KyTu"
 ```
 
 ## 11. Gửi câu nói thử qua API
