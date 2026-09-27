@@ -210,7 +210,11 @@ def main():
         global_avatars[opt.avatar_id] = load_avatar(opt.avatar_id) 
         warm_up(opt.batch_size,model)      
     elif opt.model == 'wav2lip':
-        model = load_model("./models/wav2lip.pth")
+        # Keep setup lightweight: download and integrity-check the official
+        # LiveTalking Wav2Lip 256 checkpoint only when this backend is used.
+        from tools.download_wav2lip_model import ensure_wav2lip_model
+        wav2lip_checkpoint = ensure_wav2lip_model()
+        model = load_model(str(wav2lip_checkpoint))
         global_avatars[opt.avatar_id] = load_avatar(opt.avatar_id)
         warm_up(opt.batch_size,model,256)
     elif opt.model == 'ultralight':

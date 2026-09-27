@@ -1,4 +1,6 @@
-from tools import download_musetalk_models
+import hashlib
+
+from tools import download_musetalk_models, download_wav2lip_model
 
 
 def test_ensure_musetalk_models_downloads_only_missing_files(tmp_path, monkeypatch):
@@ -26,3 +28,62 @@ def test_ensure_musetalk_models_downloads_only_missing_files(tmp_path, monkeypat
 
     assert requested == [("example/missing", "nested/missing.bin", missing_dir)]
     assert (missing_dir / "nested" / "missing.bin").read_bytes() == b"downloaded"
+
+
+def test_ensure_wav2lip_model_downloads_and_verifies(tmp_path, monkeypatch):
+    payload = b"official-test-checkpoint"
+    destination = tmp_path / "models" / "wav2lip.pth"
+    downloads = []
+
+    monkeypatch.setattr(download_wav2lip_model, "EXPECTED_SIZE", len(payload))
+    monkeypatch.setattr(
+        download_wav2lip_model,
+        "EXPECTED_SHA256",
+        hashlib.sha256(payload).hexdigest(),
+    )
+
+    def fake_download(url, target):
+        downloads.append((url, target))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(payload)
+
+    monkeypatch.setattr(download_wav2lip_model, "_download", fake_download)
+
+    result = download_wav2lip_model.ensure_wav2lip_model(
+        destination=destination
+    )
+
+    assert result == destination.resolve()
+    assert destination.read_bytes() == payload
+    assert downloads == [(download_wav2lip_model.MODEL_URL, destination.resolve())]
+
+    # A verified local checkpoint must be reused without another network call.
+    download_wav2lip_model.ensure_wav2lip_model(destination=destination)
+    assert len(downloads) == 1
+
+
+def test_ensure_wav2lip_model_replaces_corrupt_existing_file(
+    tmp_path, monkeypatch
+):
+    payload = b"expected-checkpoint"
+    destination = tmp_path / "wav2lip.pth"
+    destination.write_bytes(b"partial")
+    downloads = []
+
+    monkeypatch.setattr(download_wav2lip_model, "EXPECTED_SIZE", len(payload))
+    monkeypatch.setattr(
+        download_wav2lip_model,
+        "EXPECTED_SHA256",
+        hashlib.sha256(payload).hexdigest(),
+    )
+
+    def fake_download(url, target):
+        downloads.append((url, target))
+        target.write_bytes(payload)
+
+    monkeypatch.setattr(download_wav2lip_model, "_download", fake_download)
+
+    download_wav2lip_model.ensure_wav2lip_model(destination=destination)
+
+    assert destination.read_bytes() == payload
+    assert downloads == [(download_wav2lip_model.MODEL_URL, destination.resolve())]

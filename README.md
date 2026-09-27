@@ -93,7 +93,7 @@ Linux CUDA 环境搭建参考: <https://zhuanlan.zhihu.com/p/674972886>
 | 夸克云盘 | <https://pan.quark.cn/s/83a750323ef0> |
 | Google Drive | <https://drive.google.com/drive/folders/1FOC_MD6wdogyyX_7V1d4NDIO7P9NlSAJ?usp=sharing> |
 
-1. 将 `wav2lip256.pth` 拷贝到项目的 `models/` 目录下，重命名为 `wav2lip.pth`
+1. 首次启动 Wav2Lip 时，程序会自动下载并校验 `models/wav2lip.pth`
 2. 将 `wav2lip256_avatar1.tar.gz` 解压后整个文件夹拷贝到 `data/avatars/` 目录下
 
 ### 2.2 启动服务

@@ -170,9 +170,9 @@ cp .env.example .env
 python app.py --config config.yaml --transport webrtc --model wav2lip --avatar_id host01
 ```
 
-Cần đặt checkpoint `models/wav2lip.pth` và avatar trong
-`data/avatars/host01` trước khi chạy. Script tiện ích tương đương nằm tại
-`scripts/run_macos.sh`.
+Checkpoint chính thức `models/wav2lip.pth` được tải và kiểm tra SHA-256 tự động
+khi chọn Wav2Lip lần đầu. Avatar trong `data/avatars/host01` vẫn cần được chuẩn
+bị trước khi chạy. Script tiện ích tương đương nằm tại `scripts/run_macos.sh`.
 
 ## 5. Chạy production trên VPS GPU Windows
 
@@ -187,10 +187,10 @@ $env:PATH="$PWD\bin;$env:PATH"
 ```
 
 Script tạo `.venv`, cài PyTorch CUDA, OmniVoice, dependency MuseTalk và chép
-FFmpeg cục bộ vào `bin`. Script không tải checkpoint model. MuseTalk tải model
-khi chuẩn bị avatar lần đầu; OmniVoice tải model tiếng Việt khi nhận câu đầu
-tiên. Không cần kích hoạt `Activate.ps1` và không cần chạy script setup model
-riêng.
+FFmpeg cục bộ vào `bin`. Model được tải khi dùng lần đầu: MuseTalk tải khi
+chuẩn bị avatar, Wav2Lip tải khi khởi động backend Wav2Lip/Way2Lip, còn
+OmniVoice tải khi nhận câu đầu tiên. Không cần kích hoạt `Activate.ps1` và
+không cần chạy script setup model riêng.
 
 ### Tự tải và thử OmniVoice tiếng Việt
 
