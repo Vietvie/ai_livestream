@@ -26,11 +26,23 @@ import queue
 from queue import Queue
 from avatars.audio_features.base_asr import BaseASR
 from avatars.musetalk.whisper.audio2feature import Audio2Feature
+from utils.logger import logger
 
 class WhisperASR(BaseASR):
     def __init__(self, opt, parent, audio_processor:Audio2Feature):
         super().__init__(opt, parent)
         self.audio_processor = audio_processor
+        self.sync_offset_frames = int(
+            getattr(opt, "musetalk_sync_offset_frames", 0) or 0
+        )
+        # At 25 fps each correction step is exactly 40 ms.  Shifting the
+        # Whisper feature window changes mouth timing without touching audio
+        # timestamps or rebuilding the avatar.
+        logger.info(
+            "[MuseTalk] lip-sync correction: %+d frame(s), %+d ms",
+            self.sync_offset_frames,
+            self.sync_offset_frames * 40,
+        )
     
     def _feature2chunks(self,feature_array,batch_size,audio_feat_win=[8,8],start=0,feature_idx_multiplier=1.0):
         """
@@ -69,7 +81,8 @@ class WhisperASR(BaseASR):
         inputs = np.concatenate(self.frames) # [N * chunk]
         whisper_feature = self.audio_processor.audio2feat(inputs)
         whisper_chunks = self._feature2chunks(feature_array=whisper_feature,batch_size=self.batch_size,
-                                              audio_feat_win = [2,3],start=self.stride_left_size/2,
+                                              audio_feat_win = [2,3],
+                                              start=(self.stride_left_size/2 + self.sync_offset_frames),
                                               feature_idx_multiplier=2)
         self.feat_queue.put(whisper_chunks)
         # discard the old part to save memory

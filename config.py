@@ -63,6 +63,15 @@ def parse_args():
     parser.add_argument('--avatar_id', type=str, default='wav2lip256_avatar1',
                         help="avatar id in data/avatars")
     parser.add_argument('--batch_size', type=int, default=16, help="infer batch")
+    parser.add_argument(
+        '--musetalk_sync_offset_frames',
+        type=int,
+        default=0,
+        help=(
+            "MuseTalk lip timing correction in 40 ms video frames; positive "
+            "values advance mouth motion, negative values delay it"
+        ),
+    )
     parser.add_argument('--modelres', type=int, default=192)
     parser.add_argument('--modelfile', type=str, default='')
 

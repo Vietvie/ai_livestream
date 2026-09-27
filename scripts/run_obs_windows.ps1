@@ -2,6 +2,7 @@ param(
     [string]$AvatarId = "host01_muse_fan",
     [ValidateSet("udp", "srt")]
     [string]$ObsMode = "udp",
+    [int]$LipSyncOffsetFrames = 1,
     [int]$UdpPort = 23000,
     [int]$SrtPort = 10080,
     [string]$SrtPassphrase = "MatKhauSRT123456",
@@ -76,6 +77,7 @@ $VideoEncoder = if ($env:LIVESTREAM_OBS_ENCODER) {
 
 Write-Host "Avatar: $AvatarId"
 Write-Host "OBS mode: $ObsMode"
+Write-Host "MuseTalk lip-sync correction: $LipSyncOffsetFrames frame(s) ($($LipSyncOffsetFrames * 40) ms)"
 if ($ObsMode -eq "udp") {
     Write-Host "OBS local Input: udp://127.0.0.1:$UdpPort"
 } else {
@@ -94,6 +96,7 @@ Write-Host "OBS Input Format: mpegts"
     --obs_video_bitrate 3000000 `
     --obs_srt_relay_port $RelayPort `
     --model musetalk `
+    --musetalk_sync_offset_frames $LipSyncOffsetFrames `
     --avatar_id $AvatarId `
     --batch_size 4 `
     --max_session 1 `

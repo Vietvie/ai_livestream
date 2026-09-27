@@ -269,6 +269,7 @@ Mặc định script dùng UDP local và tự thực hiện các việc sau:
 - Thêm `C:\AI_LIVESTREAM\bin` vào `PATH`.
 - Giới hạn số thread CPU để MuseTalk không chiếm 100% CPU.
 - Dùng `h264_nvenc`, MuseTalk, OmniVoice 8 bước và `batch_size=4`.
+- Tiến khẩu hình MuseTalk 1 frame (40 ms) để bù độ trễ giải mã video OBS.
 - Xuất MPEG-TS trực tiếp tới UDP loopback `23000`.
 - In sẵn URL cần nhập trong OBS.
 
@@ -287,6 +288,23 @@ udp://127.0.0.1:23000
 - Bật khởi động lại phát khi source trở thành active.
 
 Không cần mở firewall và không dùng FFmpeg relay khi OBS chạy trên cùng VPS.
+
+### Hiệu chỉnh khẩu hình theo thời gian
+
+Mặc định script dùng `-LipSyncOffsetFrames 1`, tức khẩu hình được tiến 40 ms.
+Không cần tạo lại avatar khi thay đổi giá trị này:
+
+- Nếu miệng vẫn chậm hơn tiếng, thử `2` (tiến 80 ms).
+- Nếu miệng chạy trước tiếng, thử `0`; nếu vẫn sớm, thử `-1` (trễ 40 ms).
+
+Ví dụ:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -LipSyncOffsetFrames 2
+```
+
+Mỗi lần chỉ thay một frame rồi nghe câu có nhiều âm đóng/mở môi như
+“ba, ma, pha, môi, mua” để chọn giá trị chính xác nhất.
 
 ### OBS chạy ở máy khác
 
