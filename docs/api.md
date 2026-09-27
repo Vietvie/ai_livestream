@@ -289,3 +289,39 @@ es.onerror = () => {
 // 断开时
 es.close();
 ```
+
+---
+
+## 11. OmniVoice voice clone
+
+Các endpoint này nằm trong nhóm API livestream được bảo vệ bằng Bearer
+token và chỉ hoạt động khi session dùng `--tts omnivoice`.
+
+Upload và bật giọng clone:
+
+```text
+POST /api/livestream/voice-clone
+Authorization: Bearer <LIVESTREAM_API_TOKEN>
+Content-Type: multipart/form-data
+```
+
+| Tham số | Bắt buộc | Loại | Mô tả |
+|---|---:|---|---|
+| `file` | Có | WAV | Mẫu giọng 3–30 giây, tối đa 25 MB |
+| `ref_text` | Có | string | Phần chép lời khớp chính xác audio |
+| `consent` | Có | bool | Phải là `true`, xác nhận quyền sử dụng giọng |
+| `sessionid` | Không | string | Mặc định `0` |
+
+Truy vấn trạng thái:
+
+```text
+GET /api/livestream/voice-clone?sessionid=0
+Authorization: Bearer <LIVESTREAM_API_TOKEN>
+```
+
+Tắt voice clone và trở về giọng mặc định:
+
+```text
+DELETE /api/livestream/voice-clone?sessionid=0
+Authorization: Bearer <LIVESTREAM_API_TOKEN>
+```

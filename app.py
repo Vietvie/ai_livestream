@@ -89,8 +89,13 @@ def build_avatar_session(sessionid:str, params:dict)->BaseAvatar:
         # Default avatar loaded at startup
         avatar_this = global_avatars.get(opt.avatar_id)
     if ref_audio: #请求参数配置了参考音频
-        opt_this.REF_FILE = ref_audio
-        opt_this.REF_TEXT = ref_text
+        if opt_this.tts == 'omnivoice':
+            opt_this.omnivoice_ref_audio = ref_audio
+            opt_this.omnivoice_ref_text = ref_text
+            opt_this.omnivoice_instruct = ''
+        else:
+            opt_this.REF_FILE = ref_audio
+            opt_this.REF_TEXT = ref_text
     custom_config=params.get('custom_config','') #动作编排配置
     if custom_config:
         opt_this.customopt = json.loads(custom_config)

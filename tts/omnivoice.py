@@ -9,10 +9,12 @@ lip-sync pipeline.
 from __future__ import annotations
 
 from pathlib import Path
+from threading import RLock
 import time
 
 import numpy as np
 import resampy
+import soundfile as sf
 
 from registry import register
 from tts.base_tts import BaseTTS, State
@@ -79,22 +81,18 @@ class OmniVoiceTTS(BaseTTS):
         )
         self.speed = float(getattr(opt, "omnivoice_speed", 1.0))
         self.num_step = int(getattr(opt, "omnivoice_num_step", 16))
+        self._model_lock = RLock()
         self.voice_prompt = None
+        self.voice_prompt_info = None
 
         ref_audio = str(getattr(opt, "omnivoice_ref_audio", "") or "").strip()
         ref_text = str(getattr(opt, "omnivoice_ref_text", "") or "").strip()
-        if ref_audio:
-            path = Path(ref_audio)
-            if not path.is_file():
-                raise FileNotFoundError(f"OmniVoice reference audio not found: {path}")
-            if not ref_text:
-                raise ValueError(
-                    "omnivoice_ref_text is required when omnivoice_ref_audio is set"
-                )
-            logger.info("Creating cached OmniVoice prompt from %s", path)
-            self.voice_prompt = self.model.create_voice_clone_prompt(
-                ref_audio=str(path), ref_text=ref_text
+        if bool(ref_audio) != bool(ref_text):
+            raise ValueError(
+                "omnivoice_ref_audio and omnivoice_ref_text must be supplied together"
             )
+        if ref_audio:
+            self.configure_voice_clone(ref_audio, ref_text)
 
         logger.info(
             "OmniVoice ready in %.2fs; source sample rate=%d",
@@ -111,13 +109,16 @@ class OmniVoiceTTS(BaseTTS):
             "speed": self.speed,
             "num_step": self.num_step,
         }
-        if self.voice_prompt is not None:
-            generation["voice_clone_prompt"] = self.voice_prompt
-        elif self.instruct:
-            generation["instruct"] = self.instruct
-
         try:
-            audio_items = self.model.generate(**generation)
+            # OmniVoice prompt creation and inference share one model instance.
+            # Serialize them so a remote voice change cannot corrupt an active
+            # synthesis request.
+            with self._model_lock:
+                if self.voice_prompt is not None:
+                    generation["voice_clone_prompt"] = self.voice_prompt
+                elif self.instruct:
+                    generation["instruct"] = self.instruct
+                audio_items = self.model.generate(**generation)
             if not audio_items:
                 raise RuntimeError("OmniVoice returned no audio")
             stream = np.asarray(audio_items[0], dtype=np.float32).reshape(-1)
@@ -135,6 +136,66 @@ class OmniVoiceTTS(BaseTTS):
             )
         except Exception:
             logger.exception("OmniVoice synthesis failed")
+
+    def configure_voice_clone(self, ref_audio: str, ref_text: str) -> dict:
+        """Build and cache a voice-clone prompt for subsequent utterances."""
+        path = Path(ref_audio).expanduser().resolve()
+        transcript = str(ref_text or "").strip()
+        if not path.is_file():
+            raise FileNotFoundError(f"OmniVoice reference audio not found: {path}")
+        if path.suffix.lower() != ".wav":
+            raise ValueError("Voice reference must be a WAV file")
+        if not transcript:
+            raise ValueError(
+                "An exact reference transcript is required for voice cloning"
+            )
+
+        try:
+            audio_info = sf.info(str(path))
+        except Exception as exc:
+            raise ValueError(f"Invalid WAV reference audio: {exc}") from exc
+        if audio_info.samplerate <= 0 or audio_info.frames <= 0:
+            raise ValueError("Voice reference WAV contains no audio")
+        duration = audio_info.frames / audio_info.samplerate
+        if duration < 3.0 or duration > 30.0:
+            raise ValueError("Voice reference duration must be between 3 and 30 seconds")
+
+        logger.info(
+            "Creating OmniVoice clone prompt from %s (%.2fs, %d Hz, %d channel(s))",
+            path.name,
+            duration,
+            audio_info.samplerate,
+            audio_info.channels,
+        )
+        with self._model_lock:
+            prompt = self.model.create_voice_clone_prompt(
+                ref_audio=str(path), ref_text=transcript
+            )
+            self.voice_prompt = prompt
+            self.voice_prompt_info = {
+                "file": path.name,
+                "duration_seconds": round(duration, 3),
+                "sample_rate": audio_info.samplerate,
+                "channels": audio_info.channels,
+            }
+        logger.info("OmniVoice voice clone enabled: %s", path.name)
+        return dict(self.voice_prompt_info)
+
+    def clear_voice_clone(self) -> None:
+        """Return to the configured descriptive/default OmniVoice voice."""
+        with self._model_lock:
+            self.voice_prompt = None
+            self.voice_prompt_info = None
+        logger.info("OmniVoice voice clone disabled")
+
+    def get_voice_clone_status(self) -> dict:
+        with self._model_lock:
+            return {
+                "enabled": self.voice_prompt is not None,
+                "reference": (
+                    dict(self.voice_prompt_info) if self.voice_prompt_info else None
+                ),
+            }
 
     def _enqueue_audio(self, stream, text: str, text_event: dict):
         if stream.size == 0 or self.state != State.RUNNING:
@@ -159,7 +220,9 @@ class OmniVoiceTTS(BaseTTS):
 
     def stop_tts(self):
         # Release model memory during a clean server shutdown.
-        self.voice_prompt = None
-        self.model = None
+        with self._model_lock:
+            self.voice_prompt = None
+            self.voice_prompt_info = None
+            self.model = None
         if self.device.startswith("cuda") and self._torch.cuda.is_available():
             self._torch.cuda.empty_cache()

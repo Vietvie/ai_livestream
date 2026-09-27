@@ -295,6 +295,56 @@ Cả hai lệnh mặc định xuất UDP local tới `127.0.0.1:23000`, vì vậ
 không cần thay Media Source trong OBS. `-LipSyncOffsetFrames` chỉ hiệu lực
 với MuseTalk.
 
+### Dùng voice clone với OmniVoice
+
+Chỉ clone giọng khi có sự đồng ý rõ ràng của người sở hữu. Chuẩn bị
+một file WAV sạch dài 3–10 giây, chỉ có một người nói, không nhạc nền;
+phần chép lời phải khớp chính xác với file.
+
+Thử riêng giọng clone trước khi livestream:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\test_omnivoice_tts.py `
+  --ref-audio ".\data\voices\host.wav" `
+  --ref-text "Nội dung được nói chính xác trong file mẫu." `
+  --text "Xin chào, đây là bài kiểm tra giọng nói đã sao chép." `
+  --num-step 8 `
+  --output ".\output\voice-clone-test.wav"
+
+Start-Process .\output\voice-clone-test.wav
+```
+
+Chạy OBS local với giọng clone:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 `
+  -Model way2lip `
+  -AvatarId host01 `
+  -VoiceRefAudio "C:\AI_LIVESTREAM\data\voices\host.wav" `
+  -VoiceRefText "Nội dung được nói chính xác trong file mẫu."
+```
+
+Có thể đổi giọng cho session `0` khi server đang chạy qua API có token:
+
+```powershell
+curl.exe -X POST "http://127.0.0.1:8010/api/livestream/voice-clone" `
+  -H "Authorization: Bearer local-test-token" `
+  -F "sessionid=0" `
+  -F "consent=true" `
+  -F "ref_text=Nội dung được nói chính xác trong file mẫu." `
+  -F "file=@C:\AI_LIVESTREAM\data\voices\host.wav"
+```
+
+Xem trạng thái hoặc trở về giọng mặc định:
+
+```powershell
+curl.exe "http://127.0.0.1:8010/api/livestream/voice-clone?sessionid=0" `
+  -H "Authorization: Bearer local-test-token"
+
+curl.exe -X DELETE "http://127.0.0.1:8010/api/livestream/voice-clone?sessionid=0" `
+  -H "Authorization: Bearer local-test-token"
+```
+
 ### OBS đang chạy trên cùng VPS
 
 Trong OBS thêm **Media Source**:

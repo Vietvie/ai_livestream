@@ -217,6 +217,11 @@ async def admin_sessions(request):
                         "model": getattr(s_opt, "model", ""),
                         "avatar_id": getattr(s_opt, "avatar_id", ""),
                         "REF_FILE": getattr(s_opt, "REF_FILE", ""),
+                        "voice_clone": (
+                            avatar_session.tts.get_voice_clone_status()
+                            if hasattr(getattr(avatar_session, "tts", None), "get_voice_clone_status")
+                            else {"enabled": False, "reference": None}
+                        ),
                         "transport": getattr(s_opt, "transport", ""),
                         "batch_size": getattr(s_opt, "batch_size", 0),
                         "customopt": getattr(s_opt, "customopt", []),

@@ -2,6 +2,8 @@ param(
     [ValidateSet("musetalk", "wav2lip", "way2lip", "lip2way", "ultralight")]
     [string]$Model = "musetalk",
     [string]$AvatarId = "",
+    [string]$VoiceRefAudio = "",
+    [string]$VoiceRefText = "",
     [ValidateSet("udp", "srt")]
     [string]$ObsMode = "udp",
     [int]$LipSyncOffsetFrames = 1,
@@ -31,6 +33,25 @@ if (-not (Test-Path $VenvPython)) {
 if (-not $env:LIVESTREAM_API_TOKEN) {
     $env:LIVESTREAM_API_TOKEN = "local-test-token"
     Write-Warning "Using the test API token: local-test-token"
+}
+
+if ($env:LIVESTREAM_VOICE_REF_AUDIO) {
+    $VoiceRefAudio = $env:LIVESTREAM_VOICE_REF_AUDIO
+}
+if ($env:LIVESTREAM_VOICE_REF_TEXT) {
+    $VoiceRefText = $env:LIVESTREAM_VOICE_REF_TEXT
+}
+if ([bool]$VoiceRefAudio -ne [bool]$VoiceRefText) {
+    throw "VoiceRefAudio and VoiceRefText must be supplied together."
+}
+if ($VoiceRefAudio) {
+    if (-not (Test-Path -LiteralPath $VoiceRefAudio -PathType Leaf)) {
+        throw "Voice reference audio was not found: $VoiceRefAudio"
+    }
+    if ([System.IO.Path]::GetExtension($VoiceRefAudio).ToLowerInvariant() -ne ".wav") {
+        throw "Voice reference audio must be a WAV file."
+    }
+    $VoiceRefAudio = (Resolve-Path -LiteralPath $VoiceRefAudio).Path
 }
 
 if ($env:LIVESTREAM_MODEL) {
@@ -103,6 +124,11 @@ if ($RequestedModel -in @("way2lip", "lip2way")) {
 }
 Write-Host "Avatar: $AvatarId"
 Write-Host "Batch size: $BatchSize"
+if ($VoiceRefAudio) {
+    Write-Host "OmniVoice clone: enabled ($([System.IO.Path]::GetFileName($VoiceRefAudio)))"
+} else {
+    Write-Host "OmniVoice clone: disabled (using instructed/default voice)"
+}
 Write-Host "OBS mode: $ObsMode"
 if ($RuntimeModel -eq "musetalk") {
     Write-Host "MuseTalk lip-sync correction: $LipSyncOffsetFrames frame(s) ($($LipSyncOffsetFrames * 40) ms)"
@@ -117,6 +143,15 @@ if ($ObsMode -eq "udp") {
 }
 Write-Host "OBS Input Format: mpegts"
 
+$VoiceCloneArgs = @()
+if ($VoiceRefAudio) {
+    $VoiceCloneArgs = @(
+        "--omnivoice_ref_audio", $VoiceRefAudio,
+        "--omnivoice_ref_text", $VoiceRefText,
+        "--omnivoice_instruct", ""
+    )
+}
+
 & $VenvPython app.py `
     --config config.yaml `
     --transport obs `
@@ -130,6 +165,7 @@ Write-Host "OBS Input Format: mpegts"
     --batch_size $BatchSize `
     --max_session 1 `
     --tts omnivoice `
-    --omnivoice_num_step 8
+    --omnivoice_num_step 8 `
+    @VoiceCloneArgs
 
 exit $LASTEXITCODE

@@ -231,6 +231,20 @@ omnivoice_ref_text: 'Nội dung được nói chính xác trong đoạn âm than
 omnivoice_instruct: ''
 ```
 
+Trên Windows có thể truyền trực tiếp hai tham số cho script OBS:
+
+```powershell
+.\scripts\run_obs_windows.ps1 `
+  -VoiceRefAudio ".\data\voices\host.wav" `
+  -VoiceRefText "Nội dung được nói chính xác trong file mẫu."
+```
+
+Khi server đang chạy, endpoint có xác thực
+`POST /api/livestream/voice-clone` nhận multipart gồm `file`, `ref_text`,
+`sessionid` và `consent=true`. Dùng `GET` cùng endpoint để xem trạng thái,
+hoặc `DELETE` để trở về giọng mặc định. File upload tối đa 25 MB;
+audio phải là WAV dài 3–30 giây.
+
 Chỉ clone giọng khi có sự đồng ý của người sở hữu. Đồng thời cần kiểm tra giấy
 phép của checkpoint/dataset OmniVoice trước khi dùng cho hoạt động thương mại.
 

@@ -24,7 +24,12 @@ def main() -> int:
         ),
     )
     parser.add_argument("--num-step", type=int, default=16)
+    parser.add_argument("--ref-audio", default="")
+    parser.add_argument("--ref-text", default="")
     args = parser.parse_args()
+
+    if bool(args.ref_audio) != bool(args.ref_text):
+        parser.error("--ref-audio and --ref-text must be supplied together")
 
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA is required for this GPU smoke test")
@@ -32,12 +37,22 @@ def main() -> int:
     model = OmniVoice.from_pretrained(
         args.model, device_map="cuda:0", dtype=torch.float16
     )
-    audio = model.generate(
-        text=args.text,
-        language="vietnamese",
-        instruct="female, young adult, moderate pitch",
-        num_step=args.num_step,
-    )
+    generation = {
+        "text": args.text,
+        "language": "vietnamese",
+        "num_step": args.num_step,
+    }
+    if args.ref_audio:
+        ref_audio = Path(args.ref_audio).expanduser().resolve()
+        if not ref_audio.is_file():
+            parser.error(f"Reference audio not found: {ref_audio}")
+        generation["voice_clone_prompt"] = model.create_voice_clone_prompt(
+            ref_audio=str(ref_audio), ref_text=args.ref_text.strip()
+        )
+        print(f"Using voice clone reference: {ref_audio}")
+    else:
+        generation["instruct"] = "female, young adult, moderate pitch"
+    audio = model.generate(**generation)
     destination = Path(args.output)
     destination.parent.mkdir(parents=True, exist_ok=True)
     sf.write(destination, audio[0], int(getattr(model, "sampling_rate", 24000)))
