@@ -1,7 +1,8 @@
 # Cài đặt AI Livestream trên VPS Windows RTX 5060 Ti
 
 Tài liệu này hướng dẫn cài đặt và kiểm tra một luồng MuseTalk + OmniVoice,
-sau đó truyền video H.264 và audio AAC bằng SRT tới OBS ở máy khác.
+sau đó truyền video H.264 và audio AAC bằng SRT tới OBS trên cùng VPS hoặc
+OBS ở máy khác. Cùng một lệnh khởi động được dùng cho cả hai trường hợp.
 
 Quy trình không dùng Conda và không yêu cầu chạy `Activate.ps1`. Mọi lệnh
 Python đều gọi trực tiếp `.venv\Scripts\python.exe` để tránh lỗi PowerShell
@@ -253,9 +254,44 @@ Mở kết quả:
 Start-Process .\output\musetalk-test.mp4
 ```
 
-## 10. Kiểm tra SRT tới OBS trước khi chạy AI
+## 10. Chạy AI livestream bằng một lệnh
 
-Mở cổng Windows Firewall:
+Từ bất kỳ PowerShell nào, chạy đúng một lệnh sau. Không cần kích hoạt `.venv`,
+không cần khai báo lại `PATH` và không cần mở thêm terminal relay:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1
+```
+
+Script tự thực hiện các việc sau:
+
+- Dùng `.venv\Scripts\python.exe` đúng của dự án.
+- Thêm `C:\AI_LIVESTREAM\bin` vào `PATH`.
+- Giới hạn số thread CPU để MuseTalk không chiếm 100% CPU.
+- Dùng `h264_nvenc`, MuseTalk, OmniVoice 8 bước và `batch_size=4`.
+- Mở SRT listener trên UDP `10080`.
+- Nếu PyAV Windows thiếu SRT, tự chạy FFmpeg relay qua loopback `23001`.
+- In sẵn hai URL OBS local và remote ra màn hình.
+
+### OBS đang chạy trên cùng VPS
+
+Trong OBS thêm **Media Source**:
+
+- Bỏ chọn **Local File**.
+- Đặt **Input** là:
+
+```text
+srt://127.0.0.1:10080?mode=caller&transtype=live&latency=500000&passphrase=MatKhauSRT123456&pbkeylen=16
+```
+
+- Đặt **Input Format** là `mpegts`.
+- Bật khởi động lại phát khi source trở thành active.
+
+Không cần mở firewall khi OBS chạy trên cùng VPS.
+
+### OBS chạy ở máy khác
+
+Chỉ khi dùng OBS ở máy khác, mở UDP `10080` trong Windows Firewall:
 
 ```powershell
 New-NetFirewallRule `
@@ -266,63 +302,24 @@ New-NetFirewallRule `
   -Action Allow
 ```
 
-Nếu nhà cung cấp VPS có firewall hoặc security group riêng, mở thêm UDP 10080
-tại trang quản trị VPS.
-
-Trên VPS chạy card kiểm tra:
-
-```powershell
-cd C:\AI_LIVESTREAM
-$env:PATH="$PWD\bin;$env:PATH"
-
-.\.venv\Scripts\python.exe .\tools\test_obs_stream.py `
-  --url "srt://0.0.0.0:10080?mode=listener&transtype=live&latency=500000&pkt_size=1316&passphrase=MatKhauSRT123456&pbkeylen=16" `
-  --seconds 60
-```
-
-Lệnh sẽ chờ OBS kết nối; đây là hành vi bình thường.
-
-Trên máy OBS, thêm **Media Source**:
-
-- Bỏ chọn **Local File**.
-- Đặt **Input**:
+Nếu nhà cung cấp VPS có firewall/security group riêng, mở thêm UDP `10080` ở
+trang quản trị VPS. Trên OBS máy khác dùng **Media Source** với Input:
 
 ```text
 srt://IP_PUBLIC_VPS:10080?mode=caller&transtype=live&latency=500000&passphrase=MatKhauSRT123456&pbkeylen=16
 ```
 
-- Đặt **Input Format** là `mpegts`.
-- Bật khởi động lại phát khi source trở thành active.
+Input Format vẫn là `mpegts`. Không thay đổi lệnh chạy ứng dụng. Listener này
+phục vụ một OBS tại một thời điểm; hãy đóng Media Source local trước khi kết
+nối từ OBS máy khác.
 
-Khi thành công, OBS sẽ hiển thị card kiểm tra và phát âm 440 Hz.
-
-## 11. Chạy AI livestream hoàn chỉnh tới OBS
-
-Dừng card kiểm tra bằng `Ctrl+C`, sau đó chạy:
+Đổi `MatKhauSRT123456` trước khi dùng thật bằng tham số `-SrtPassphrase`:
 
 ```powershell
-cd C:\AI_LIVESTREAM
-$env:PATH="$PWD\bin;$env:PATH"
-$env:PYTHONUTF8="1"
-$env:LIVESTREAM_API_TOKEN="local-test-token"
-
-.\.venv\Scripts\python.exe app.py `
-  --config config.yaml `
-  --transport obs `
-  --obs_url "srt://0.0.0.0:10080?mode=listener&transtype=live&latency=500000&pkt_size=1316&passphrase=MatKhauSRT123456&pbkeylen=16" `
-  --obs_video_encoder libx264 `
-  --obs_video_bitrate 4000000 `
-  --model musetalk `
-  --avatar_id host01_muse_fan `
-  --batch_size 4 `
-  --max_session 1 `
-  --tts omnivoice
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 -SrtPassphrase "MatKhauMoiToiThieu10KyTu"
 ```
 
-Mở Media Source trong OBS. Khi kết nối thành công, OBS sẽ nhận cả hình và âm
-thanh trong cùng luồng SRT/MPEG-TS.
-
-## 12. Gửi câu nói thử qua API
+## 11. Gửi câu nói thử qua API
 
 Mở PowerShell khác:
 
@@ -356,7 +353,7 @@ Invoke-RestMethod `
 
 Chế độ mặc định dùng LLM dummy nên chưa cần OpenAI API key.
 
-## 13. Theo dõi tài nguyên
+## 12. Theo dõi tài nguyên
 
 Mở PowerShell khác:
 
@@ -375,7 +372,7 @@ Một lần test đạt yêu cầu khi:
 Nếu thiếu VRAM, giảm `--batch_size 4` xuống `--batch_size 2`. Sau khi một luồng
 hoạt động ổn định mới bắt đầu thử kiến trúc đa luồng.
 
-## 14. Lỗi thường gặp
+## 13. Lỗi thường gặp
 
 ### `conda` không tồn tại
 
@@ -416,9 +413,20 @@ Kiểm tra `nvidia-smi`, sau đó cài lại đúng PyTorch CUDA 12.8:
 
 ### SRT báo `Protocol not found`
 
+Một số wheel PyAV cho Windows không chứa `libsrt`, ngay cả khi `ffmpeg.exe`
+trên máy có hỗ trợ SRT. Transport OBS sẽ tự nhận lỗi này và mở relay FFmpeg
+qua UDP loopback; không cần cài lại PyAV và không mã hóa video/audio lần hai.
+
+Đảm bảo FFmpeg có SRT và thư mục `bin` đang trong `PATH`:
+
 ```powershell
-.\.venv\Scripts\python.exe -m pip install --upgrade "av>=14.1.0"
+$env:PATH="$PWD\bin;$env:PATH"
+ffmpeg -protocols | Select-String srt
 ```
+
+Khi fallback hoạt động, log sẽ có dòng
+`[OBS] FFmpeg SRT relay started on local UDP port 23001`. Nếu port này đang
+được chương trình khác sử dụng, thêm `--obs_srt_relay_port 23002` vào lệnh chạy.
 
 ### `h264_nvenc` không khả dụng
 

@@ -113,6 +113,8 @@ def parse_args():
                         help="OBS transport encoder: libx264 (safe default) or h264_nvenc")
     parser.add_argument('--obs_video_bitrate', type=int, default=4000000,
                         help="OBS transport video bitrate in bits per second")
+    parser.add_argument('--obs_srt_relay_port', type=int, default=23001,
+                        help="local UDP port used by the automatic FFmpeg SRT fallback")
     parser.add_argument('--max_session', type=int, default=5)
     parser.add_argument('--listenport', type=int, default=8010,
                         help="web listen port")

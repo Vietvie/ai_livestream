@@ -458,7 +458,15 @@ class BaseAvatar:
 
             for audio_frame in audio_frames:
                 #frame,type,eventpoint = audio_frame
-                frame = (audio_frame.data * 32767).astype(np.int16)
+                # Resampling and neural TTS can produce tiny overshoots outside
+                # [-1, 1].  Casting those values directly to int16 wraps them
+                # around at the numeric boundary and is heard as crackling in
+                # OBS even though the source WAV sounds clean.
+                samples = np.asarray(audio_frame.data, dtype=np.float32)
+                samples = np.nan_to_num(samples, nan=0.0, posinf=1.0, neginf=-1.0)
+                frame = np.rint(np.clip(samples, -1.0, 1.0) * 32767.0).astype(
+                    np.int16
+                )
 
                 # 使用统一输出接口推送音频帧
                 self.output.push_audio_frame(frame, audio_frame.userdata)

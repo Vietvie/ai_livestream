@@ -125,6 +125,8 @@ async def download_record(request):
 
 def main():
     global rtc_manager, opt, model,load_avatar
+    thread_quit = None
+    rendthrd = None
     # 解析命令行参数
     from config import parse_args
     opt = parse_args()
@@ -167,7 +169,16 @@ def main():
         params = {}
         # session 0 for virtualcam
         session_manager.add_session('0', build_avatar_session('0', params))
-        rendthrd = Thread(target=session_manager.get_session('0').render, args=(thread_quit,))
+        # Keep the render worker daemonized as a last-resort safety net.  The
+        # normal shutdown path still signals and joins it below, but a blocked
+        # third-party inference/TTS call must not keep the Windows process alive
+        # forever after Ctrl+C.
+        rendthrd = Thread(
+            target=session_manager.get_session('0').render,
+            args=(thread_quit,),
+            daemon=True,
+            name="avatar-render",
+        )
         rendthrd.start()
         if opt.transport == 'virtualcam':
             logger.info("[VirtualCam] Virtual camera output enabled - digital human will be rendered to virtual camera")
@@ -220,18 +231,38 @@ def main():
     def run_server(runner):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(runner.setup())
-        site = web.TCPSite(runner, '0.0.0.0', opt.listenport)
-        loop.run_until_complete(site.start())
-        if opt.transport=='rtcpush':
-            for k in range(opt.max_session):
-                push_url = opt.push_url
-                if k!=0:
-                    push_url = opt.push_url+str(k)
-                loop.run_until_complete(rtc_manager.handle_rtcpush(push_url, str(k)))
-        loop.run_forever()    
+        try:
+            loop.run_until_complete(runner.setup())
+            site = web.TCPSite(runner, '0.0.0.0', opt.listenport)
+            loop.run_until_complete(site.start())
+            if opt.transport=='rtcpush':
+                for k in range(opt.max_session):
+                    push_url = opt.push_url
+                    if k!=0:
+                        push_url = opt.push_url+str(k)
+                    loop.run_until_complete(rtc_manager.handle_rtcpush(push_url, str(k)))
+            loop.run_forever()
+        except KeyboardInterrupt:
+            logger.info("Ctrl+C received; shutting down")
+        finally:
+            if thread_quit is not None:
+                thread_quit.set()
+            try:
+                loop.run_until_complete(runner.cleanup())
+            except Exception:
+                logger.exception("HTTP server cleanup failed")
+            finally:
+                loop.close()
     #Thread(target=run_server, args=(web.AppRunner(appasync),)).start()
-    run_server(web.AppRunner(appasync))
+    try:
+        run_server(web.AppRunner(appasync))
+    finally:
+        if thread_quit is not None:
+            thread_quit.set()
+        if rendthrd is not None:
+            rendthrd.join(timeout=10)
+            if rendthrd.is_alive():
+                logger.warning("Avatar render thread did not stop within 10 seconds")
 
     #app.on_shutdown.append(on_shutdown)
     #app.router.add_post("/offer", offer)

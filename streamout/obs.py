@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections import deque
 from fractions import Fraction
+import shutil
+import subprocess
 import time
 from typing import TYPE_CHECKING, Optional
 
@@ -35,6 +37,7 @@ class OBSOutput(BaseOutput):
             or ""
         ).strip()
         self.push_url = configured_url or "udp://127.0.0.1:23000?pkt_size=1316"
+        self._mux_url = self.push_url
         self.fps = max(1, int(getattr(opt, "fps", 25)))
         self.sample_rate = int(getattr(parent, "sample_rate", 16000))
         self.output_sample_rate = 48000
@@ -57,6 +60,9 @@ class OBSOutput(BaseOutput):
         # growing memory forever.
         self._pending_audio = deque(maxlen=250)
         self._retry_at = 0.0
+        self._srt_relay_port = int(getattr(opt, "obs_srt_relay_port", 23001))
+        self._srt_relay_process = None
+        self._uses_srt_relay = False
 
     def start(self) -> None:
         self._video_index = 0
@@ -83,12 +89,35 @@ class OBSOutput(BaseOutput):
             self.video_encoder = "libx264"
             av.Codec(self.video_encoder, "w")
 
-        self._container = av.open(
-            self.push_url,
-            mode="w",
-            format=output_format,
-            options={"flush_packets": "1"},
-        )
+        if self._uses_srt_relay:
+            self._ensure_srt_relay()
+        try:
+            self._container = av.open(
+                self._mux_url,
+                mode="w",
+                format=output_format,
+                options={"flush_packets": "1"},
+            )
+        except Exception as exc:
+            # Windows PyAV wheels commonly omit libSRT even when the standalone
+            # ffmpeg.exe includes it.  Keep encoding in PyAV, send MPEG-TS to a
+            # loopback UDP socket, and let FFmpeg copy packets to SRT.
+            if (
+                self.push_url.lower().startswith("srt://")
+                and "protocol not found" in str(exc).lower()
+            ):
+                logger.warning(
+                    "[OBS] PyAV has no SRT protocol; using ffmpeg SRT relay"
+                )
+                self._enable_srt_relay()
+                self._container = av.open(
+                    self._mux_url,
+                    mode="w",
+                    format="mpegts",
+                    options={"flush_packets": "1"},
+                )
+            else:
+                raise
 
         self._video_stream = self._container.add_stream(
             self.video_encoder, rate=self.fps
@@ -140,6 +169,69 @@ class OBSOutput(BaseOutput):
         for audio, eventpoint in pending:
             self._encode_audio(audio, eventpoint)
 
+    def _enable_srt_relay(self) -> None:
+        self._uses_srt_relay = True
+        self._mux_url = (
+            f"udp://127.0.0.1:{self._srt_relay_port}?pkt_size=1316"
+        )
+        self._ensure_srt_relay()
+
+    def _ensure_srt_relay(self) -> None:
+        process = self._srt_relay_process
+        if process is not None and process.poll() is None:
+            return
+
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise RuntimeError(
+                "PyAV has no SRT support and ffmpeg was not found in PATH"
+            )
+
+        input_url = (
+            f"udp://127.0.0.1:{self._srt_relay_port}"
+            "?fifo_size=1000000&overrun_nonfatal=1"
+        )
+        command = [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "warning",
+            "-i",
+            input_url,
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a:0",
+            "-c",
+            "copy",
+            "-mpegts_flags",
+            "+resend_headers",
+            "-f",
+            "mpegts",
+            self.push_url,
+        ]
+        self._srt_relay_process = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+        )
+        logger.info(
+            "[OBS] FFmpeg SRT relay started on local UDP port %d",
+            self._srt_relay_port,
+        )
+
+    def _stop_srt_relay(self) -> None:
+        process = self._srt_relay_process
+        self._srt_relay_process = None
+        if process is None or process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=2)
+
     def _reset_output(self, reason: Exception | str | None = None) -> None:
         if reason is not None:
             logger.warning("[OBS] Output disconnected; retrying in 2 seconds: %s", reason)
@@ -158,6 +250,22 @@ class OBSOutput(BaseOutput):
             except Exception:
                 pass
 
+    def _handle_output_error(self, exc: Exception) -> None:
+        should_enable_relay = (
+            self.push_url.lower().startswith("srt://")
+            and not self._uses_srt_relay
+            and "protocol not found" in str(exc).lower()
+        )
+        self._reset_output(exc)
+        if should_enable_relay:
+            logger.warning(
+                "[OBS] PyAV has no SRT protocol; using ffmpeg SRT relay"
+            )
+            self._enable_srt_relay()
+            # Reopen immediately on the next frame instead of waiting for the
+            # normal disconnect backoff.
+            self._retry_at = 0.0
+
     def _mux_packets(self, packets) -> None:
         for packet in packets:
             self._container.mux(packet)
@@ -165,6 +273,12 @@ class OBSOutput(BaseOutput):
     def push_video_frame(self, frame) -> None:
         if not isinstance(frame, np.ndarray):
             return
+        if self._uses_srt_relay:
+            try:
+                self._ensure_srt_relay()
+            except Exception as exc:
+                self._reset_output(exc)
+                return
         if self._container is None and time.perf_counter() < self._retry_at:
             time.sleep(1 / self.fps)
             return
@@ -182,7 +296,7 @@ class OBSOutput(BaseOutput):
             video_frame.time_base = Fraction(1, self.fps)
             self._mux_packets(self._video_stream.encode(video_frame))
         except Exception as exc:
-            self._reset_output(exc)
+            self._handle_output_error(exc)
             return
 
         target = self._started_at + self._video_index / self.fps
@@ -221,10 +335,11 @@ class OBSOutput(BaseOutput):
         try:
             self._encode_audio(frame, eventpoint)
         except Exception as exc:
-            self._reset_output(exc)
+            self._handle_output_error(exc)
 
     def stop(self) -> None:
         if self._container is None:
+            self._stop_srt_relay()
             return
         try:
             for resampled in self._audio_resampler.resample(None):
@@ -235,4 +350,5 @@ class OBSOutput(BaseOutput):
             logger.warning("[OBS] Error while flushing output: %s", exc)
         finally:
             self._reset_output()
+            self._stop_srt_relay()
             logger.info("[OBS] Output stopped")
