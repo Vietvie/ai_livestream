@@ -1,6 +1,6 @@
 import hashlib
 
-from tools import download_musetalk_models, download_wav2lip_model
+from tools import download_musetalk_models, download_wav2lip_model, prepare_avatar
 
 
 def test_ensure_musetalk_models_downloads_only_missing_files(tmp_path, monkeypatch):
@@ -87,3 +87,30 @@ def test_ensure_wav2lip_model_replaces_corrupt_existing_file(
 
     assert destination.read_bytes() == payload
     assert downloads == [(download_wav2lip_model.MODEL_URL, destination.resolve())]
+
+
+def test_ensure_wav2lip_avatar_builds_missing_assets(tmp_path, monkeypatch):
+    source = tmp_path / "avatar.mp4"
+    source.write_bytes(b"video")
+    commands = []
+
+    monkeypatch.setattr(prepare_avatar, "ROOT", tmp_path)
+
+    def fake_run(command):
+        commands.append(command)
+        avatar_dir = tmp_path / "data" / "avatars" / "host01"
+        (avatar_dir / "full_imgs").mkdir(parents=True)
+        (avatar_dir / "face_imgs").mkdir()
+        (avatar_dir / "coords.pkl").write_bytes(b"coords")
+        (avatar_dir / "full_imgs" / "00000000.png").write_bytes(b"frame")
+        (avatar_dir / "face_imgs" / "00000000.png").write_bytes(b"face")
+
+    monkeypatch.setattr(prepare_avatar, "run", fake_run)
+
+    result = prepare_avatar.ensure_wav2lip_avatar("host01")
+
+    assert result == tmp_path / "data" / "avatars" / "host01"
+    assert commands[0][-4:] == ["--avatar-id", "host01", "--model", "wav2lip"]
+
+    prepare_avatar.ensure_wav2lip_avatar("host01")
+    assert len(commands) == 1

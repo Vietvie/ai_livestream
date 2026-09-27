@@ -149,6 +149,8 @@ Không cần chạy `setup_musetalk_windows.ps1`,
 - Khi chọn `wav2lip` hoặc alias `way2lip` lần đầu, server tự tải checkpoint
   Wav2Lip 256 chính thức (~205 MB) vào `models\wav2lip.pth`, sau đó kiểm tra
   kích thước và SHA-256 trước khi nạp model.
+- Nếu avatar Wav2Lip chưa có, server tự chuẩn hóa `avatar.mp4` ở thư mục gốc và
+  tạo `data\avatars\<avatar-id>` trong lần khởi động đầu tiên.
 - Khi TTS nhận câu nói đầu tiên, OmniVoice tự tải model tiếng Việt còn thiếu.
 - Những lần sau chương trình dùng cache/model trên SSD và không tải lại.
 - Nếu download bị gián đoạn, chạy lại đúng lệnh đang dùng; chương trình chỉ tải
@@ -281,7 +283,8 @@ Mặc định script dùng UDP local và tự thực hiện các việc sau:
 LiveTalking đặt tên backend gốc là `wav2lip`. Script cũng chấp nhận
 `way2lip` là tên alias thử nghiệm. Cả hai dùng cùng checkpoint; nếu
 `models\wav2lip.pth` chưa có, server tự tải và kiểm tra checkpoint trong lần
-khởi động đầu tiên. Chỉ avatar Wav2Lip `host01` cần được chuẩn bị trước.
+khởi động đầu tiên. Nếu `data\avatars\host01` chưa có, server cũng tự tạo nó từ
+`C:\AI_LIVESTREAM\avatar.mp4`; không cần chạy lệnh chuẩn bị riêng.
 
 Chạy Wav2Lip với avatar `host01`:
 

@@ -171,8 +171,9 @@ python app.py --config config.yaml --transport webrtc --model wav2lip --avatar_i
 ```
 
 Checkpoint chính thức `models/wav2lip.pth` được tải và kiểm tra SHA-256 tự động
-khi chọn Wav2Lip lần đầu. Avatar trong `data/avatars/host01` vẫn cần được chuẩn
-bị trước khi chạy. Script tiện ích tương đương nằm tại `scripts/run_macos.sh`.
+khi chọn Wav2Lip lần đầu. Nếu avatar `data/avatars/host01` chưa có, chương trình
+tự tạo từ `avatar.mp4` ở thư mục gốc. Script tiện ích tương đương nằm tại
+`scripts/run_macos.sh`.
 
 ## 5. Chạy production trên VPS GPU Windows
 

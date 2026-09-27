@@ -10,6 +10,67 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def wav2lip_avatar_is_ready(avatar_id: str) -> bool:
+    """Return whether all runtime assets for a Wav2Lip avatar exist."""
+    avatar_dir = ROOT / "data" / "avatars" / avatar_id
+    coords = avatar_dir / "coords.pkl"
+    full_imgs = avatar_dir / "full_imgs"
+    face_imgs = avatar_dir / "face_imgs"
+    image_patterns = ("*.png", "*.jpg", "*.jpeg")
+
+    def has_image(directory: Path) -> bool:
+        return directory.is_dir() and any(
+            next(directory.glob(pattern), None) is not None
+            for pattern in image_patterns
+        )
+
+    return (
+        coords.is_file()
+        and coords.stat().st_size > 0
+        and has_image(full_imgs)
+        and has_image(face_imgs)
+    )
+
+
+def ensure_wav2lip_avatar(
+    avatar_id: str,
+    source_video: Path | str | None = None,
+) -> Path:
+    """Build a missing Wav2Lip avatar automatically from root avatar.mp4."""
+    avatar_dir = ROOT / "data" / "avatars" / avatar_id
+    if wav2lip_avatar_is_ready(avatar_id):
+        print(f"Wav2Lip avatar is ready: {avatar_dir}", flush=True)
+        return avatar_dir
+
+    source = Path(source_video or ROOT / "avatar.mp4").expanduser().resolve()
+    if not source.is_file():
+        raise RuntimeError(
+            f"Wav2Lip avatar '{avatar_id}' is missing and no source video was "
+            f"found at {source}. Copy avatar.mp4 to the project root and start "
+            "the server again."
+        )
+
+    print(
+        f"Wav2Lip avatar '{avatar_id}' is missing; preparing it from {source}",
+        flush=True,
+    )
+    run(
+        [
+            sys.executable,
+            str(ROOT / "tools" / "prepare_avatar.py"),
+            str(source),
+            "--avatar-id", avatar_id,
+            "--model", "wav2lip",
+        ]
+    )
+    if not wav2lip_avatar_is_ready(avatar_id):
+        raise RuntimeError(
+            f"Wav2Lip avatar preparation finished without creating all "
+            f"required assets in {avatar_dir}."
+        )
+    return avatar_dir
+
+
 def run(command: list[str]) -> None:
     print("+", " ".join(str(part) for part in command), flush=True)
     subprocess.run(command, cwd=ROOT, check=True)
