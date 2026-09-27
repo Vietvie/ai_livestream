@@ -324,6 +324,18 @@ powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_window
   -VoiceRefText "Nội dung được nói chính xác trong file mẫu."
 ```
 
+Với Windows PowerShell 5.1, nên lưu transcript thành file UTF-8
+`data\voices\host.txt` rồi dùng `-VoiceRefTextFile` để tránh tiếng Việt
+bị biến thành dấu `?`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 `
+  -Model way2lip `
+  -AvatarId host01 `
+  -VoiceRefAudio "C:\AI_LIVESTREAM\data\voices\host.wav" `
+  -VoiceRefTextFile "C:\AI_LIVESTREAM\data\voices\host.txt"
+```
+
 Có thể đổi giọng cho session `0` khi server đang chạy qua API có token:
 
 ```powershell

@@ -239,6 +239,10 @@ Trên Windows có thể truyền trực tiếp hai tham số cho script OBS:
   -VoiceRefText "Nội dung được nói chính xác trong file mẫu."
 ```
 
+Nếu Windows PowerShell hiển thị tiếng Việt thành dấu `?`, lưu transcript
+trong file UTF-8 và thay `-VoiceRefText` bằng
+`-VoiceRefTextFile ".\data\voices\host.txt"`.
+
 Khi server đang chạy, endpoint có xác thực
 `POST /api/livestream/voice-clone` nhận multipart gồm `file`, `ref_text`,
 `sessionid` và `consent=true`. Dùng `GET` cùng endpoint để xem trạng thái,

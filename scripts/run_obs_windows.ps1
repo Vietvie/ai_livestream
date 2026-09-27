@@ -4,6 +4,7 @@ param(
     [string]$AvatarId = "",
     [string]$VoiceRefAudio = "",
     [string]$VoiceRefText = "",
+    [string]$VoiceRefTextFile = "",
     [ValidateSet("udp", "srt")]
     [string]$ObsMode = "udp",
     [int]$LipSyncOffsetFrames = 1,
@@ -41,8 +42,22 @@ if ($env:LIVESTREAM_VOICE_REF_AUDIO) {
 if ($env:LIVESTREAM_VOICE_REF_TEXT) {
     $VoiceRefText = $env:LIVESTREAM_VOICE_REF_TEXT
 }
+if ($env:LIVESTREAM_VOICE_REF_TEXT_FILE) {
+    $VoiceRefTextFile = $env:LIVESTREAM_VOICE_REF_TEXT_FILE
+}
+if ($VoiceRefText -and $VoiceRefTextFile) {
+    throw "Use either VoiceRefText or VoiceRefTextFile, not both."
+}
+if ($VoiceRefTextFile) {
+    if (-not (Test-Path -LiteralPath $VoiceRefTextFile -PathType Leaf)) {
+        throw "Voice transcript file was not found: $VoiceRefTextFile"
+    }
+    $VoiceRefText = (
+        Get-Content -LiteralPath $VoiceRefTextFile -Raw -Encoding UTF8
+    ).Trim()
+}
 if ([bool]$VoiceRefAudio -ne [bool]$VoiceRefText) {
-    throw "VoiceRefAudio and VoiceRefText must be supplied together."
+    throw "VoiceRefAudio and VoiceRefText (or VoiceRefTextFile) must be supplied together."
 }
 if ($VoiceRefAudio) {
     if (-not (Test-Path -LiteralPath $VoiceRefAudio -PathType Leaf)) {
@@ -147,8 +162,7 @@ $VoiceCloneArgs = @()
 if ($VoiceRefAudio) {
     $VoiceCloneArgs = @(
         "--omnivoice_ref_audio", $VoiceRefAudio,
-        "--omnivoice_ref_text", $VoiceRefText,
-        "--omnivoice_instruct", ""
+        "--omnivoice_ref_text", $VoiceRefText
     )
 }
 
