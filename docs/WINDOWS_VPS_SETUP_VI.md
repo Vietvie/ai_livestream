@@ -301,6 +301,32 @@ Chỉ clone giọng khi có sự đồng ý rõ ràng của người sở hữu.
 một file WAV sạch dài 3–10 giây, chỉ có một người nói, không nhạc nền;
 phần chép lời phải khớp chính xác với file.
 
+Cách khuyến nghị không cần nhập transcript: chỉ copy file vào đúng vị trí:
+
+```text
+C:\AI_LIVESTREAM\voice.wav
+```
+
+Sau đó chạy script OBS bình thường, không truyền tham số voice:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\AI_LIVESTREAM\scripts\run_obs_windows.ps1 `
+  -Model way2lip `
+  -AvatarId host01
+```
+
+Lần chạy đầu, code tự thực hiện toàn bộ quy trình:
+
+1. Đọc `voice.wav`, trộn về mono, cắt im lặng đầu/cuối và chuẩn hóa 16 kHz.
+2. Tự tải `vinai/PhoWhisper-small` và chép lời tiếng Việt cục bộ.
+3. Lưu audio và transcript vào `data\voices\auto-voice.*`.
+4. Giải phóng tiến trình ASR, sau đó mới nạp Wav2Lip/MuseTalk và OmniVoice.
+5. Cache kết quả; những lần sau không chạy ASR lại. Khi thay `voice.wav`,
+   cache tự động được tạo lại.
+
+Lần đầu sẽ mất thêm thời gian tải PhoWhisper. Các cách khai báo
+`-VoiceRefAudio` và transcript bên dưới chỉ dùng khi muốn ghi đè kết quả ASR.
+
 Thử riêng giọng clone trước khi livestream:
 
 ```powershell

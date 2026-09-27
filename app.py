@@ -45,9 +45,12 @@ from server.session_manager import session_manager
 import argparse
 import random
 import shutil
+import subprocess
+import sys
 import asyncio
 import torch
 from io import BytesIO
+from pathlib import Path
 from typing import Dict
 from utils.logger import logger
 import copy
@@ -135,6 +138,42 @@ def main():
     # 解析命令行参数
     from config import parse_args
     opt = parse_args()
+
+    # Zero-configuration voice cloning: when voice.wav exists and no explicit
+    # reference was supplied, normalize and transcribe it in a short-lived
+    # subprocess before loading the avatar/TTS models. The child process exits
+    # after ASR so it does not retain extra VRAM during livestreaming.
+    if opt.tts == 'omnivoice':
+        ref_audio = str(getattr(opt, 'omnivoice_ref_audio', '') or '').strip()
+        ref_text = str(getattr(opt, 'omnivoice_ref_text', '') or '').strip()
+        auto_voice = str(getattr(opt, 'omnivoice_auto_voice', 'voice.wav') or '').strip()
+        if not ref_audio and not ref_text and auto_voice:
+            source = Path(auto_voice).expanduser().resolve()
+            if source.is_file():
+                prepared_audio = Path('data/voices/auto-voice.wav').resolve()
+                prepared_text = Path('data/voices/auto-voice.txt').resolve()
+                prepared_meta = Path('data/voices/auto-voice.json').resolve()
+                logger.info(
+                    "voice.wav detected; preparing automatic Vietnamese voice clone"
+                )
+                subprocess.run(
+                    [
+                        sys.executable,
+                        'tools/prepare_voice_clone.py',
+                        str(source),
+                        '--audio-output', str(prepared_audio),
+                        '--text-output', str(prepared_text),
+                        '--metadata-output', str(prepared_meta),
+                        '--asr-model', str(opt.omnivoice_asr_model),
+                    ],
+                    check=True,
+                )
+                opt.omnivoice_ref_audio = str(prepared_audio)
+                opt.omnivoice_ref_text = prepared_text.read_text(
+                    encoding='utf-8'
+                ).strip()
+                opt.omnivoice_instruct = ''
+                logger.info("Automatic voice clone reference is ready")
 
     # ─── 加载 avatar 插件（触发 @register 注册）──────────────────────
     _avatar_modules = {

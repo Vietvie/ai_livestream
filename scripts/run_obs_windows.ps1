@@ -141,8 +141,10 @@ Write-Host "Avatar: $AvatarId"
 Write-Host "Batch size: $BatchSize"
 if ($VoiceRefAudio) {
     Write-Host "OmniVoice clone: enabled ($([System.IO.Path]::GetFileName($VoiceRefAudio)))"
+} elseif (Test-Path -LiteralPath (Join-Path $ProjectDir "voice.wav") -PathType Leaf) {
+    Write-Host "OmniVoice clone: automatic (voice.wav detected; PhoWhisper will create the transcript)"
 } else {
-    Write-Host "OmniVoice clone: disabled (using instructed/default voice)"
+    Write-Host "OmniVoice clone: disabled (copy voice.wav to the project root to enable it)"
 }
 Write-Host "OBS mode: $ObsMode"
 if ($RuntimeModel -eq "musetalk") {

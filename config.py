@@ -102,6 +102,11 @@ def parse_args():
                         help='3-10 second WAV for voice cloning')
     parser.add_argument('--omnivoice_ref_text', type=str, default='',
                         help='exact transcript of omnivoice_ref_audio')
+    parser.add_argument('--omnivoice_auto_voice', type=str, default='voice.wav',
+                        help='auto-transcribe this WAV when no clone reference is configured')
+    parser.add_argument('--omnivoice_asr_model', type=str,
+                        default='vinai/PhoWhisper-small',
+                        help='local Vietnamese ASR model used for automatic voice cloning')
     parser.add_argument('--omnivoice_speed', type=float, default=1.0)
     parser.add_argument('--omnivoice_num_step', type=int, default=16)
 

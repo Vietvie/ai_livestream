@@ -6,6 +6,7 @@ output/
 *.egg-info/
 *.so
 *.mp4
+/voice.wav
 
 tmp*
 trial*/
