@@ -43,12 +43,12 @@ def setup_livestream_routes(app, orchestrator):
     async def protect_upstream_control_api(request, handler):
         if request.method == "OPTIONS":
             return await handler(request)
-        # Streaming uses a per-client token instead of the administrator token.
-        if (
-            request.method == "GET"
-            and request.path.startswith("/api/v1/clients/")
-            and request.path.endswith("/stream.ts")
-        ):
+        # Stream and self-service assets use a per-client token instead of the
+        # administrator token. Their exact handlers enforce client ownership.
+        client_scoped = request.path.startswith("/api/v1/clients/") and (
+            request.path.endswith("/stream.ts") or "/assets/" in request.path
+        )
+        if client_scoped:
             return await handler(request)
         protected = tuple(orchestrator.settings.api.protected_paths)
         if protected and request.path.startswith(protected):

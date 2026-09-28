@@ -15,7 +15,10 @@ CLIENT_FILES = (
     "config.example.json",
     "install.ps1",
     "run.ps1",
+    "create_avatar.ps1",
+    "create_voice.ps1",
     "obs_client.py",
+    "manage_assets.py",
 )
 
 

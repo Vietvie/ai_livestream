@@ -126,6 +126,15 @@ hiển thị lại token cũ. Nếu làm mất token, tạo token mới:
 
 Token cũ mất hiệu lực ngay sau khi rotate.
 
+Quản trị viên chỉ cần gán avatar mặc định để khởi tạo client. Sau khi nhận
+`stream_token`, người dùng có thể tự upload avatar và voice riêng mà không cần
+token quản trị:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\broker_admin.py register-client shop-lan `
+  --avatar host01
+```
+
 Có thể cho hai client dùng chung avatar nhưng voice khác, hoặc dùng chung voice
 nhưng avatar khác. Đăng ký lại cùng `client_id` sẽ cập nhật profile và khởi tạo
 lại đúng session đó. Hãy dừng OBS Client và chờ job của client hoàn tất trước
@@ -178,6 +187,40 @@ Khởi động:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
+
+### Client tự tạo avatar và voice
+
+Trước tiên dừng `run.ps1`; server không thay tài nguyên khi OBS đang nhận luồng.
+
+Tạo avatar từ video tối đa 500 MB:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\create_avatar.ps1 `
+  -Video .\avatar.mp4
+```
+
+Tạo voice clone từ WAV sạch, dài 3–30 giây, tối đa 25 MB:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\create_voice.ps1 `
+  -Audio .\voice.wav
+```
+
+Có thể truyền transcript chính xác để bỏ qua ASR:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\create_voice.ps1 `
+  -Audio .\voice.wav `
+  -Text "Nội dung chính xác trong file WAV."
+```
+
+Hai lệnh dùng `stream_token` trong `config.json`, chờ hàng đợi chuẩn bị xong và
+tự gán tài nguyên mới vào profile. Client không thể đặt ID tùy ý hoặc sửa tài
+nguyên của client khác. Khi hoàn tất, chạy lại `run.ps1`.
+
+Trạng thái tác vụ tài nguyên: `uploading`, `queued`, `waiting_gpu`, `running`,
+`completed` hoặc `failed`. Hàng đợi tài nguyên và hàng đợi phát lời dùng chung
+khóa GPU, vì vậy chuẩn bị avatar/voice không chạy đồng thời với TTS/lip-sync.
 
 Client tự kết nối lại khi mạng đứt và chỉ copy H.264/AAC, không encode lại.
 
@@ -236,6 +279,9 @@ Authorization: Bearer <LIVESTREAM_API_TOKEN>
 | GET | `/api/v1/jobs/{job_id}` | Xem trạng thái job |
 | GET | `/api/v1/queue` | Xem tổng quan hàng chờ |
 | GET | `/api/v1/clients/{client_id}/stream.ts` | MPEG-TS riêng của client |
+| POST | `/api/v1/clients/{client_id}/assets/avatar` | Client upload video avatar riêng |
+| POST | `/api/v1/clients/{client_id}/assets/voice` | Client upload WAV voice riêng |
+| GET | `/api/v1/clients/{client_id}/assets/jobs/{job_id}` | Client xem trạng thái chuẩn bị tài nguyên |
 
 Body tạo client:
 
@@ -252,7 +298,8 @@ Body tạo job:
 ## 10. Giới hạn và hướng mở rộng
 
 - FIFO hiện là hàng chờ trong RAM; profile và voice được lưu trên SSD. Khi
-  restart server, job đang chờ không được phục hồi.
+  restart server, job nói hoặc job chuẩn bị tài nguyên đang chờ không được phục
+  hồi; client cần upload lại nếu tác vụ chưa hoàn tất.
 - Một GPU xử lý một job nói tại một thời điểm để tránh quá tải VRAM. Có thể
   scale nhiều GPU bằng cách chạy một server/port trên mỗi GPU và đặt Redis/RQ
   hoặc RabbitMQ ở phía trước.

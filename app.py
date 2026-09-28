@@ -265,7 +265,9 @@ def main():
     livestream_orchestrator.start()
 
     #############################################################################
-    appasync = web.Application(client_max_size=1024**2*100)
+    # Self-service avatar uploads can contain several minutes of source video.
+    # Route-level validation caps avatars at 500 MB and voices at 25 MB.
+    appasync = web.Application(client_max_size=550 * 1024**2)
     appasync["llm_response"] = livestream_orchestrator.llm_response
     appasync["opt"] = opt
     appasync["rtc_manager"] = rtc_manager
@@ -284,7 +286,7 @@ def main():
         from server.broker_routes import setup_broker_routes
         from server.broker_service import BrokerService
 
-        broker_service = BrokerService(Path.cwd())
+        broker_service = BrokerService(Path.cwd(), avatar_model=opt.model)
         appasync["broker_service"] = broker_service
         setup_broker_routes(appasync, broker_service)
 

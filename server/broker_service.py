@@ -12,7 +12,7 @@ import re
 import secrets
 import subprocess
 import sys
-from threading import Event, Thread
+from threading import Event, Lock, Thread
 import time
 import uuid
 
@@ -58,20 +58,44 @@ class SpeechJob:
     completed_at: float | None = None
 
 
+@dataclass
+class AssetJob:
+    job_id: str
+    client_id: str
+    kind: str
+    asset_id: str
+    source_path: str
+    ref_text: str = ""
+    status: str = "queued"
+    error: str = ""
+    created_at: float = field(default_factory=time.time)
+    started_at: float | None = None
+    completed_at: float | None = None
+
+
 class BrokerService:
     """Own profiles, one global FIFO queue and per-client render sessions."""
 
-    def __init__(self, root: Path | str = "."):
+    def __init__(self, root: Path | str = ".", avatar_model: str = "wav2lip"):
         self.root = Path(root).resolve()
         self.state_dir = self.root / "data" / "broker"
+        self.upload_dir = self.state_dir / "uploads"
         self.voice_dir = self.root / "data" / "voices" / "broker"
         self.profile_file = self.state_dir / "clients.json"
+        self.avatar_model = "wav2lip" if avatar_model in {
+            "wav2lip", "way2lip", "lip2way"
+        } else avatar_model
         self.profiles: dict[str, ClientProfile] = {}
         self.jobs: dict[str, SpeechJob] = {}
+        self.asset_jobs: dict[str, AssetJob] = {}
         self.queue: asyncio.Queue[str] = asyncio.Queue()
+        self.asset_queue: asyncio.Queue[str] = asyncio.Queue()
         self._session_locks: dict[str, asyncio.Lock] = {}
+        self._gpu_work_lock = asyncio.Lock()
+        self._asset_submit_guard = Lock()
         self._managed_sessions: set[str] = set()
         self._worker_task: asyncio.Task | None = None
+        self._asset_worker_task: asyncio.Task | None = None
         self._load_profiles()
 
     @staticmethod
@@ -108,6 +132,9 @@ class BrokerService:
             self._worker_task = asyncio.create_task(
                 self._worker(), name="broker-fifo-worker"
             )
+            self._asset_worker_task = asyncio.create_task(
+                self._asset_worker(), name="broker-asset-fifo-worker"
+            )
             logger.info("Multi-client FIFO broker started")
 
     async def stop(self) -> None:
@@ -117,6 +144,14 @@ class BrokerService:
             task.cancel()
             try:
                 await task
+            except asyncio.CancelledError:
+                pass
+        asset_task = self._asset_worker_task
+        self._asset_worker_task = None
+        if asset_task is not None:
+            asset_task.cancel()
+            try:
+                await asset_task
             except asyncio.CancelledError:
                 pass
         for session_id in tuple(self._managed_sessions):
@@ -152,6 +187,7 @@ class BrokerService:
         avatar_id: str,
         voice_id: str = "",
         rotate_stream_token: bool = False,
+        _asset_job_id: str = "",
     ) -> tuple[ClientProfile, str]:
         client_id = validate_id(client_id, "client_id")
         avatar_id = validate_id(avatar_id, "avatar_id")
@@ -161,7 +197,7 @@ class BrokerService:
             raise ValueError(f"Avatar does not exist on server: {avatar_id}")
         if voice_id and not self.voice_metadata_path(voice_id).is_file():
             raise ValueError(f"Voice does not exist on server: {voice_id}")
-        self._assert_client_idle(client_id)
+        self._assert_client_idle(client_id, ignore_asset_job_id=_asset_job_id)
 
         previous = self.profiles.get(client_id)
         now = time.time()
@@ -187,6 +223,9 @@ class BrokerService:
         return profile, stream_token
 
     def authorize_stream(self, client_id: str, token: str) -> ClientProfile:
+        return self.authorize_client(client_id, token)
+
+    def authorize_client(self, client_id: str, token: str) -> ClientProfile:
         profile = self.get_profile(client_id)
         supplied_hash = hashlib.sha256(str(token or "").encode("utf-8")).hexdigest()
         if not profile.stream_token_hash or not secrets.compare_digest(
@@ -194,6 +233,100 @@ class BrokerService:
         ):
             raise PermissionError("Invalid stream token for this client")
         return profile
+
+    @staticmethod
+    def asset_job_view(job: AssetJob) -> dict:
+        return {
+            "job_id": job.job_id,
+            "client_id": job.client_id,
+            "kind": job.kind,
+            "asset_id": job.asset_id,
+            "status": job.status,
+            "error": job.error,
+            "created_at": job.created_at,
+            "started_at": job.started_at,
+            "completed_at": job.completed_at,
+        }
+
+    def submit_asset_upload(
+        self,
+        client_id: str,
+        kind: str,
+        filename: str,
+        source_file,
+        ref_text: str = "",
+    ) -> AssetJob:
+        with self._asset_submit_guard:
+            profile = self.get_profile(client_id)
+            self._assert_client_idle(profile.client_id)
+            kind = str(kind or "").strip().lower()
+            if kind not in {"avatar", "voice"}:
+                raise ValueError("Asset kind must be avatar or voice")
+
+            suffix = Path(str(filename or "")).suffix.lower()
+            allowed = {".wav"} if kind == "voice" else {
+                ".mp4", ".mov", ".mkv", ".webm"
+            }
+            if suffix not in allowed:
+                expected = ", ".join(sorted(allowed))
+                raise ValueError(f"Invalid {kind} file; expected: {expected}")
+            reference_text = str(ref_text or "").strip()
+            if len(reference_text) > 4000:
+                raise ValueError("Voice reference transcript exceeds 4000 characters")
+
+            job_id = str(uuid.uuid4())
+            digest = hashlib.sha256(
+                profile.client_id.encode("utf-8")
+            ).hexdigest()[:10]
+            readable = re.sub(r"[^A-Za-z0-9_-]", "_", profile.client_id)[:28]
+            asset_id = f"client_{readable}_{digest}_{kind}_{job_id[:8]}"
+            validate_id(asset_id, "asset_id")
+
+            max_bytes = (
+                25 * 1024 * 1024 if kind == "voice" else 500 * 1024 * 1024
+            )
+            self.upload_dir.mkdir(parents=True, exist_ok=True)
+            destination = self.upload_dir / f"{job_id}{suffix}"
+            job = AssetJob(
+                job_id=job_id,
+                client_id=profile.client_id,
+                kind=kind,
+                asset_id=asset_id,
+                source_path=str(destination),
+                ref_text=reference_text,
+                status="uploading",
+            )
+            self.asset_jobs[job.job_id] = job
+            total = 0
+            try:
+                with destination.open("wb") as output:
+                    while True:
+                        chunk = source_file.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        total += len(chunk)
+                        if total > max_bytes:
+                            raise ValueError(
+                                f"{kind} upload exceeds "
+                                f"{max_bytes // (1024 * 1024)} MB"
+                            )
+                        output.write(chunk)
+                if total == 0:
+                    raise ValueError(f"{kind} upload is empty")
+            except Exception:
+                destination.unlink(missing_ok=True)
+                self.asset_jobs.pop(job.job_id, None)
+                raise
+            job.status = "queued"
+            self.asset_queue.put_nowait(job.job_id)
+            return job
+
+    def get_asset_job(self, client_id: str, job_id: str) -> AssetJob:
+        client_id = validate_id(client_id, "client_id")
+        job = self.asset_jobs.get(str(job_id))
+        if job is None or job.client_id != client_id:
+            raise KeyError(f"Asset job not found: {job_id}")
+        return job
 
     def delete_profile(self, client_id: str) -> None:
         profile = self.get_profile(client_id)
@@ -308,6 +441,15 @@ class BrokerService:
 
     def submit(self, client_id: str, text: str) -> SpeechJob:
         profile = self.get_profile(client_id)
+        if any(
+            item.client_id == profile.client_id
+            and item.status in {"uploading", "queued", "waiting_gpu", "running"}
+            for item in self.asset_jobs.values()
+        ):
+            raise ValueError(
+                f"Client {profile.client_id} is preparing an avatar/voice; "
+                "wait for the asset job to finish"
+            )
         speech = str(text or "").strip()
         if not speech:
             raise ValueError("text is required")
@@ -331,7 +473,9 @@ class BrokerService:
         self.queue.put_nowait(job.job_id)
         return job
 
-    def _assert_client_idle(self, client_id: str) -> None:
+    def _assert_client_idle(
+        self, client_id: str, ignore_asset_job_id: str = ""
+    ) -> None:
         session_id = self.session_id(client_id)
         if broadcast_registry.get(session_id).subscriber_count > 0:
             raise ValueError(
@@ -347,6 +491,17 @@ class BrokerService:
             raise ValueError(
                 f"Client {client_id} has queued/running jobs; wait before "
                 "changing its avatar or voice"
+            )
+        asset_busy = any(
+            item.job_id != ignore_asset_job_id
+            and item.client_id == client_id
+            and item.status in {"uploading", "queued", "waiting_gpu", "running"}
+            for item in self.asset_jobs.values()
+        )
+        if asset_busy:
+            raise ValueError(
+                f"Client {client_id} already has an avatar/voice job; "
+                "wait for it to finish"
             )
 
     def get_job(self, job_id: str) -> SpeechJob:
@@ -364,6 +519,15 @@ class BrokerService:
         return {
             "queued": queued,
             "running": running,
+            "asset_queued": sum(
+                item.status in {"uploading", "queued", "waiting_gpu"}
+                for item in self.asset_jobs.values()
+            ),
+            "asset_running": [
+                self.asset_job_view(item)
+                for item in self.asset_jobs.values()
+                if item.status == "running"
+            ],
             "clients": len(self.profiles),
             "active_sessions": len(self._managed_sessions),
         }
@@ -420,6 +584,91 @@ class BrokerService:
         broadcast_registry.remove(session_id)
         self._managed_sessions.discard(session_id)
 
+    async def _asset_worker(self) -> None:
+        while True:
+            job_id = await self.asset_queue.get()
+            job = self.asset_jobs.get(job_id)
+            if job is None:
+                self.asset_queue.task_done()
+                continue
+            remove_source = True
+            try:
+                job.status = "waiting_gpu"
+                async with self._gpu_work_lock:
+                    job.status = "running"
+                    job.started_at = time.time()
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, self._prepare_asset, job)
+                job.status = "completed"
+                job.completed_at = time.time()
+            except asyncio.CancelledError:
+                # run_in_executor cannot stop an already-running subprocess.
+                # Keep its input file only when work already entered the
+                # executor; otherwise it is safe to clean up immediately.
+                remove_source = job.status != "running"
+                raise
+            except Exception as exc:
+                job.status = "failed"
+                job.error = str(exc)
+                job.completed_at = time.time()
+                logger.exception(
+                    "Broker asset job failed: client=%s kind=%s job=%s",
+                    job.client_id,
+                    job.kind,
+                    job.job_id,
+                )
+            finally:
+                if remove_source:
+                    Path(job.source_path).unlink(missing_ok=True)
+                self.asset_queue.task_done()
+
+    def _prepare_asset(self, job: AssetJob) -> None:
+        self._assert_client_idle(
+            job.client_id, ignore_asset_job_id=job.job_id
+        )
+        profile = self.get_profile(job.client_id)
+        source = Path(job.source_path)
+        if job.kind == "voice":
+            self.save_voice(job.asset_id, source.read_bytes(), job.ref_text)
+            self.upsert_profile(
+                profile.client_id,
+                profile.avatar_id,
+                job.asset_id,
+                _asset_job_id=job.job_id,
+            )
+            return
+
+        command = [
+            sys.executable,
+            str(self.root / "tools" / "prepare_avatar.py"),
+            str(source),
+            "--avatar-id",
+            job.asset_id,
+            "--model",
+            self.avatar_model,
+        ]
+        if self.avatar_model == "musetalk":
+            command.extend(
+                [
+                    "--landmark-backend",
+                    "fan",
+                    "--bbox-shift",
+                    "0",
+                    "--musetalk-version",
+                    "v15",
+                ]
+            )
+        subprocess.run(command, cwd=self.root, check=True)
+        avatar_dir = self.root / "data" / "avatars" / job.asset_id
+        if not avatar_dir.is_dir():
+            raise RuntimeError("Avatar preparation did not create its output")
+        self.upsert_profile(
+            profile.client_id,
+            job.asset_id,
+            profile.voice_id,
+            _asset_job_id=job.job_id,
+        )
+
     async def _worker(self) -> None:
         while True:
             job_id = await self.queue.get()
@@ -430,14 +679,15 @@ class BrokerService:
             try:
                 job.status = "waiting_client"
                 await self._wait_for_client(job.client_id)
-                job.status = "running"
-                job.started_at = time.time()
-                avatar = await self.ensure_session(job.client_id)
-                avatar.put_msg_txt(
-                    job.text,
-                    {"source": "broker", "job_id": job.job_id},
-                )
-                await self._wait_for_speech(avatar, job)
+                async with self._gpu_work_lock:
+                    job.status = "running"
+                    job.started_at = time.time()
+                    avatar = await self.ensure_session(job.client_id)
+                    avatar.put_msg_txt(
+                        job.text,
+                        {"source": "broker", "job_id": job.job_id},
+                    )
+                    await self._wait_for_speech(avatar, job)
                 job.status = "completed"
                 job.completed_at = time.time()
             except asyncio.CancelledError:

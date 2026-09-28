@@ -45,6 +45,14 @@ async def _body(request) -> dict:
 
 
 def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
+    def authorize_client(request):
+        client_id = request.match_info["client_id"]
+        authorization = request.headers.get("Authorization", "")
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            raise PermissionError("A client stream token is required")
+        return service.authorize_client(client_id, token)
+
     async def list_assets(request):
         return _json(
             {
@@ -146,16 +154,55 @@ def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
     async def queue_status(request):
         return _json(service.status())
 
+    async def upload_client_asset(request):
+        try:
+            profile = authorize_client(request)
+            service._assert_client_idle(profile.client_id)
+            form = await request.post()
+            consent = str(form.get("consent", "")).strip().lower()
+            if consent not in {"1", "true", "yes", "confirmed"}:
+                raise ValueError(
+                    "Confirm that you own or have permission to use this "
+                    "face/voice with consent=true"
+                )
+            upload = form.get("file")
+            if upload is None or not hasattr(upload, "file"):
+                raise ValueError("Multipart field 'file' is required")
+            upload.file.seek(0)
+            loop = asyncio.get_running_loop()
+            job = await loop.run_in_executor(
+                None,
+                service.submit_asset_upload,
+                profile.client_id,
+                request.match_info["kind"],
+                str(getattr(upload, "filename", "") or ""),
+                upload.file,
+                str(form.get("ref_text", "")),
+            )
+            return _json(service.asset_job_view(job), status=202)
+        except Exception as exc:
+            return _error(
+                exc, status=403 if isinstance(exc, PermissionError) else 400
+            )
+
+    async def get_client_asset_job(request):
+        try:
+            profile = authorize_client(request)
+            job = service.get_asset_job(
+                profile.client_id, request.match_info["job_id"]
+            )
+            return _json(service.asset_job_view(job))
+        except Exception as exc:
+            return _error(
+                exc, status=403 if isinstance(exc, PermissionError) else 400
+            )
+
     async def client_stream(request):
         client_id = request.match_info["client_id"]
         subscriber = None
         broadcast = None
         try:
-            authorization = request.headers.get("Authorization", "")
-            scheme, _, token = authorization.partition(" ")
-            if scheme.lower() != "bearer" or not token:
-                raise PermissionError("A client stream token is required")
-            service.authorize_stream(client_id, token)
+            authorize_client(request)
             session_id = service.session_id(client_id)
             broadcast = broadcast_registry.get(session_id)
             subscriber = broadcast.subscribe()
@@ -197,6 +244,13 @@ def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
     app.router.add_put("/api/v1/clients/{client_id}", put_client)
     app.router.add_delete("/api/v1/clients/{client_id}", delete_client)
     app.router.add_get("/api/v1/clients/{client_id}/stream.ts", client_stream)
+    app.router.add_post(
+        "/api/v1/clients/{client_id}/assets/{kind}", upload_client_asset
+    )
+    app.router.add_get(
+        "/api/v1/clients/{client_id}/assets/jobs/{job_id}",
+        get_client_asset_job,
+    )
     app.router.add_post("/api/v1/voices/{voice_id}", upload_voice)
     app.router.add_post("/api/v1/jobs", submit_job)
     app.router.add_get("/api/v1/jobs/{job_id}", get_job)
