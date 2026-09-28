@@ -199,6 +199,11 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 Lần đầu, client đăng ký `client_id`, tự ghi token riêng và xóa khóa đăng ký khỏi
 `config.json`. Nếu ID đã tồn tại, người dùng phải chọn ID khác.
 
+Để tự setup tài nguyên riêng ngay trong cùng lệnh, đặt `avatar.mp4` và/hoặc
+`voice.wav` trong `C:\AI_LIVESTREAM_CLIENT` trước khi chạy `start.ps1`. Có thể
+thêm `voice.txt` chứa transcript chính xác. Client chỉ upload khi nội dung file
+thay đổi; dùng `start.ps1 -ForceAssets` nếu cần xử lý lại.
+
 ### Client tự tạo avatar và voice
 
 Trước tiên dừng `start.ps1`; server không thay tài nguyên khi OBS đang nhận luồng.

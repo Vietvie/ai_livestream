@@ -1,3 +1,7 @@
+param(
+    [switch]$ForceAssets
+)
+
 $ErrorActionPreference = "Stop"
 $ClientDir = $PSScriptRoot
 Set-Location $ClientDir
@@ -16,6 +20,20 @@ if ($NeedsSetup) {
     if ($LASTEXITCODE -ne 0) {
         throw "Client installation failed with code $LASTEXITCODE"
     }
+}
+
+# Register the client-selected ID and persist its private stream token before
+# uploading private assets or opening the long-running OBS stream.
+& $Python obs_client.py --config config.json --register-only
+if ($LASTEXITCODE -ne 0) {
+    throw "Client registration failed with code $LASTEXITCODE"
+}
+
+$AssetArguments = @("auto_setup_assets.py", "--config", "config.json")
+if ($ForceAssets) { $AssetArguments += "--force" }
+& $Python @AssetArguments
+if ($LASTEXITCODE -ne 0) {
+    throw "Client avatar/voice setup failed with code $LASTEXITCODE"
 }
 
 & (Join-Path $ClientDir "run.ps1")

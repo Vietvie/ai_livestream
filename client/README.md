@@ -39,7 +39,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 Lần chạy đầu client tự đăng ký ID, ghi token riêng và xóa khóa đăng ký khỏi
 `config.json`. Nếu ID đã có người sử dụng, hãy đổi `client_id` rồi chạy lại.
 
-## Tự tạo avatar riêng
+## Tự động tạo avatar và voice riêng
+
+Trước khi chạy `start.ps1`, đặt các file tùy chọn cạnh script:
+
+```text
+avatar.mp4   video người dẫn riêng
+voice.wav    mẫu giọng riêng dài 3–30 giây
+voice.txt    transcript chính xác của voice.wav (không bắt buộc)
+```
+
+`start.ps1` tự upload, chờ GPU Server xử lý rồi mới mở luồng OBS. Nếu không có
+hai file này, client dùng avatar và voice mặc định của server. File không thay
+đổi sẽ được bỏ qua ở những lần chạy sau. Khi thay file, dừng client rồi chạy lại
+`start.ps1`.
+
+Chỉ sử dụng hình ảnh/giọng nói của chính mình hoặc người đã đồng ý. Muốn ép xử
+lý lại các file dù nội dung không đổi:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -ForceAssets
+```
+
+## Upload avatar thủ công (tùy chọn)
 
 Dừng `start.ps1` trước khi đổi avatar hoặc voice. Chỉ dùng hình ảnh của bạn hoặc
 người đã đồng ý. Video nên có một khuôn mặt rõ, góc quay chính diện, ánh sáng
@@ -53,7 +75,7 @@ powershell -ExecutionPolicy Bypass -File .\create_avatar.ps1 `
 Client upload video, server tự chuẩn hóa và tạo avatar theo backend đang chạy.
 Lệnh chờ đến khi hoàn tất rồi tự gán avatar mới vào đúng `client_id`.
 
-## Tự tạo voice clone riêng
+## Upload voice clone thủ công (tùy chọn)
 
 Chỉ dùng giọng nói khi bạn là chủ sở hữu hoặc đã có sự đồng ý. WAV cần sạch,
 một người nói, dài 3–30 giây và tối đa 25 MB:

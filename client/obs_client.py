@@ -122,6 +122,11 @@ def main() -> int:
     parser.add_argument("--client-id")
     parser.add_argument("--token")
     parser.add_argument("--registration-key")
+    parser.add_argument(
+        "--register-only",
+        action="store_true",
+        help="register/save a private token if needed, then exit",
+    )
     parser.add_argument("--udp-port", type=int)
     parser.add_argument(
         "--obs-url",
@@ -194,6 +199,9 @@ def main() -> int:
             parser.error(str(exc))
     if not 1 <= udp_port <= 65535:
         parser.error("udp_port must be between 1 and 65535")
+    if args.register_only:
+        print(f"Client identity is ready: {client_id}")
+        return 0
 
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:

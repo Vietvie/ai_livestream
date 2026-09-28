@@ -20,6 +20,7 @@ CLIENT_FILES = (
     "create_voice.ps1",
     "obs_client.py",
     "manage_assets.py",
+    "auto_setup_assets.py",
 )
 
 

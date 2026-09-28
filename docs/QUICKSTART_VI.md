@@ -112,6 +112,17 @@ notepad .\config.json
 lần chạy đầu, client tự đăng ký và lưu `stream_token` riêng vào `config.json`;
 khóa đăng ký được xóa khỏi file và các lần sau không đăng ký lại.
 
+Nếu client muốn dùng avatar và voice riêng, chỉ cần copy vào đúng thư mục:
+
+```text
+C:\AI_LIVESTREAM_CLIENT\avatar.mp4
+C:\AI_LIVESTREAM_CLIENT\voice.wav
+```
+
+Có thể thêm `voice.txt` chứa chính xác nội dung được nói trong `voice.wav` để
+clone giọng chuẩn hơn. Nếu không có, server tự chép lời tiếng Việt. Chỉ sử dụng
+hình ảnh và giọng nói của chính mình hoặc người đã đồng ý.
+
 Trong OBS tạo **Media Source**:
 
 - Bỏ chọn `Local File`.
@@ -138,6 +149,12 @@ Giữ hai cửa sổ PowerShell hoạt động trong khi livestream. Lần đầ
 thời gian vì hệ thống tự cài dependency, tải model và chuẩn bị avatar; những lần
 sau vẫn dùng đúng hai lệnh trên.
 
-Sau khi hệ thống chạy ổn định, client có thể tự đổi avatar/voice bằng
-`create_avatar.ps1` và `create_voice.ps1`; đây là chức năng tùy chọn, không cần
-cho lần chạy đầu.
+Lệnh client tự đăng ký ID, upload `avatar.mp4`/`voice.wav`, chờ server chuẩn bị
+xong rồi mới phát vào OBS. File không đổi sẽ không bị upload lại. Khi thay file,
+dừng client và chạy lại cùng lệnh. Muốn bắt buộc xử lý lại dù file không đổi:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1 -ForceAssets
+```
+
+`create_avatar.ps1` và `create_voice.ps1` vẫn được giữ lại cho thao tác nâng cao.
