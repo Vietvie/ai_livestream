@@ -147,33 +147,27 @@ nhưng avatar khác. Đăng ký lại cùng `client_id` sẽ cập nhật profil
 lại đúng session đó. Hãy dừng OBS Client và chờ job của client hoàn tất trước
 khi đổi avatar/voice để không cắt luồng đang phát.
 
-## 6. Tạo gói source OBS Client riêng
+## 6. Clone source OBS Client riêng
 
-Source GPU Server là toàn bộ repo chính. Source client độc lập nằm tại
-`client/`. Trên máy server hoặc máy phát triển,
-đóng gói thành ZIP chỉ chứa client:
+Source GPU Server và OBS Client được quản lý bằng hai repo độc lập. Trên máy
+OBS Client:
 
 ```powershell
-cd C:\AI_LIVESTREAM
-.\.venv\Scripts\python.exe .\tools\build_obs_client_package.py
+cd C:\
+git clone https://github.com/Vietvie/ai_livestream_client.git AI_LIVESTREAM_CLIENT
+cd C:\AI_LIVESTREAM_CLIENT
 ```
 
-File tạo ra:
-
-```text
-C:\AI_LIVESTREAM\dist\AI_LIVESTREAM_OBS_CLIENT.zip
-```
-
-ZIP không chứa server, model, avatar, voice, CUDA hoặc token. Gửi ZIP này cho
-người dùng OBS; không cần cấp quyền truy cập repo server.
+Repo client: <https://github.com/Vietvie/ai_livestream_client>. Repo này không
+chứa server, model, CUDA hoặc token và không cần quyền truy cập source server.
 
 ## 7. Cài OBS Client trên máy phát livestream
 
-Máy client chỉ cần Python 3.12 và OBS Studio. Giải nén ZIP, sau đó chạy:
+Máy client chỉ cần Git, Python 3.12 và OBS Studio. Sau khi clone, chạy:
 
 ```powershell
 cd C:\AI_LIVESTREAM_CLIENT
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+Copy-Item .\config.example.json .\config.json
 notepad .\config.json
 ```
 

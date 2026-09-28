@@ -92,7 +92,8 @@ Linux CUDA 环境搭建参考: <https://zhuanlan.zhihu.com/p/674972886>
 多客户端 GPU Server、独立 avatar/voice、FIFO 队列和独立 OBS Client 源码：
 [docs/SERVER_CLIENT_VI.md](docs/SERVER_CLIENT_VI.md)
 
-可单独分发的轻量 OBS Client 源码：[client/README.md](client/README.md)
+独立的轻量 OBS Client 仓库：
+<https://github.com/Vietvie/ai_livestream_client>
 
 ### 2.1 下载模型
 

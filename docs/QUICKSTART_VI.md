@@ -18,6 +18,7 @@ winget install -e --id Python.Python.3.12
 ### Máy OBS Client
 
 ```powershell
+winget install -e --id Git.Git
 winget install -e --id Python.Python.3.12
 winget install -e --id OBSProject.OBSStudio
 ```
@@ -34,20 +35,19 @@ git clone https://github.com/Vietvie/ai_livestream.git AI_LIVESTREAM
 cd C:\AI_LIVESTREAM
 ```
 
-Copy video mặc định vào:
+Copy video mặc định vào server:
 
 ```text
 C:\AI_LIVESTREAM\avatar.mp4
 ```
 
-Tạo gói nhẹ để gửi cho máy OBS Client:
+Trên máy OBS Client, clone repo client riêng:
 
 ```powershell
-py -3.12 .\tools\build_obs_client_package.py
+cd C:\
+git clone https://github.com/Vietvie/ai_livestream_client.git AI_LIVESTREAM_CLIENT
+cd C:\AI_LIVESTREAM_CLIENT
 ```
-
-Gửi `dist\AI_LIVESTREAM_OBS_CLIENT.zip` cho người dùng rồi giải nén thành
-`C:\AI_LIVESTREAM_CLIENT`.
 
 ## 3. Config server và client
 
