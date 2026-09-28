@@ -1,7 +1,8 @@
 {
   "server_url": "http://IP_GPU_SERVER:8010",
-  "client_id": "shop-lan",
-  "stream_token": "TOKEN_RIENG_DO_SERVER_CAP_CHO_CLIENT_NAY",
+  "client_id": "TU_CHON_ID_RIENG",
+  "registration_key": "KHOA_DANG_KY_DO_SERVER_CAP",
+  "stream_token": "",
   "udp_port": 23000,
   "reconnect_delay": 2.0
 }

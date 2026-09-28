@@ -76,7 +76,13 @@ class AssetJob:
 class BrokerService:
     """Own profiles, one global FIFO queue and per-client render sessions."""
 
-    def __init__(self, root: Path | str = ".", avatar_model: str = "wav2lip"):
+    def __init__(
+        self,
+        root: Path | str = ".",
+        avatar_model: str = "wav2lip",
+        default_avatar_id: str = "",
+        registration_key: str = "",
+    ):
         self.root = Path(root).resolve()
         self.state_dir = self.root / "data" / "broker"
         self.upload_dir = self.state_dir / "uploads"
@@ -85,6 +91,8 @@ class BrokerService:
         self.avatar_model = "wav2lip" if avatar_model in {
             "wav2lip", "way2lip", "lip2way"
         } else avatar_model
+        self.default_avatar_id = str(default_avatar_id or "").strip()
+        self.registration_key = str(registration_key or "").strip()
         self.profiles: dict[str, ClientProfile] = {}
         self.jobs: dict[str, SpeechJob] = {}
         self.asset_jobs: dict[str, AssetJob] = {}
@@ -234,26 +242,28 @@ class BrokerService:
             raise PermissionError("Invalid stream token for this client")
         return profile
 
-    def provision_profile(
-        self,
-        client_id: str,
-        avatar_id: str,
-        voice_id: str,
-        stream_token: str,
-    ) -> ClientProfile:
-        """Create/update a client from the local server bootstrap config."""
-        token = str(stream_token or "").strip()
-        if len(token) < 24:
-            raise ValueError(
-                f"stream_token for {client_id} must contain at least 24 characters"
+    def register_client(
+        self, client_id: str, registration_key: str
+    ) -> tuple[ClientProfile, str]:
+        """Let a new client choose its own ID and receive a private token once."""
+        client_id = validate_id(client_id, "client_id")
+        supplied = str(registration_key or "").strip()
+        if not self.registration_key or not secrets.compare_digest(
+            supplied, self.registration_key
+        ):
+            raise PermissionError("Invalid client registration key")
+        if client_id in self.profiles:
+            raise FileExistsError(
+                f"Client ID already exists: {client_id}. Choose another client_id."
             )
-        profile, _ = self.upsert_profile(client_id, avatar_id, voice_id)
-        profile.stream_token_hash = hashlib.sha256(
-            token.encode("utf-8")
-        ).hexdigest()
-        profile.updated_at = time.time()
-        self._save_profiles()
-        return profile
+        if not self.default_avatar_id:
+            raise RuntimeError("Server default avatar is not configured")
+        return self.upsert_profile(
+            client_id=client_id,
+            avatar_id=self.default_avatar_id,
+            voice_id="",
+            rotate_stream_token=True,
+        )
 
     @staticmethod
     def asset_job_view(job: AssetJob) -> dict:

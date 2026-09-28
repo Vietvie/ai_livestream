@@ -5,6 +5,8 @@ param(
     [int]$MaxClients = 4,
     [int]$ListenPort = 8010,
     [int]$BatchSize = 4,
+    [Parameter(Mandatory = $true)]
+    [string]$RegistrationKey,
     [ValidateSet("h264_nvenc", "libx264")]
     [string]$VideoEncoder = "h264_nvenc",
     [ValidateRange(8, 64)]
@@ -49,6 +51,7 @@ Write-Host "Speech scheduling: global FIFO"
     --avatar_id $DefaultAvatarId `
     --batch_size $BatchSize `
     --max_session $MaxClients `
+    --broker_registration_key $RegistrationKey `
     --listenport $ListenPort `
     --obs_video_encoder $VideoEncoder `
     --obs_video_bitrate 3000000 `

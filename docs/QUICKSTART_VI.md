@@ -59,11 +59,12 @@ Copy-Item .\server-config.example.json .\server-config.json
 notepad .\server-config.json
 ```
 
-Chỉ cần đổi ba token/ID sau. `stream_token` phải giống phía client:
+Đổi hai khóa bí mật. Server không khai báo trước từng client:
 
 ```json
 {
   "api_token": "ADMIN_TOKEN_DAI_IT_NHAT_24_KY_TU",
+  "client_registration_key": "KHOA_DANG_KY_CLIENT_DAI_IT_NHAT_24_KY_TU",
   "model": "wav2lip",
   "avatar_video": "avatar.mp4",
   "default_avatar_id": "host01",
@@ -71,14 +72,7 @@ Chỉ cần đổi ba token/ID sau. `stream_token` phải giống phía client:
   "max_clients": 2,
   "batch_size": 4,
   "video_encoder": "h264_nvenc",
-  "omnivoice_num_step": 16,
-  "clients": [
-    {
-      "client_id": "client01",
-      "stream_token": "CLIENT_TOKEN_DAI_IT_NHAT_24_KY_TU",
-      "voice_id": ""
-    }
-  ]
+  "omnivoice_num_step": 16
 }
 ```
 
@@ -106,12 +100,17 @@ notepad .\config.json
 ```json
 {
   "server_url": "http://IP_CUA_GPU_SERVER:8010",
-  "client_id": "client01",
-  "stream_token": "CLIENT_TOKEN_DAI_IT_NHAT_24_KY_TU",
+  "client_id": "CLIENT_TU_CHON_ID_RIENG",
+  "registration_key": "KHOA_DANG_KY_CLIENT_DAI_IT_NHAT_24_KY_TU",
+  "stream_token": "",
   "udp_port": 23000,
   "reconnect_delay": 2.0
 }
 ```
+
+`client_id` do người dùng tự chọn. `registration_key` phải giống server. Trong
+lần chạy đầu, client tự đăng ký và lưu `stream_token` riêng vào `config.json`;
+khóa đăng ký được xóa khỏi file và các lần sau không đăng ký lại.
 
 Trong OBS tạo **Media Source**:
 

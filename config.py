@@ -133,6 +133,8 @@ def parse_args():
     parser.add_argument('--obs_srt_relay_port', type=int, default=23001,
                         help="local TCP port used by the automatic FFmpeg SRT fallback")
     parser.add_argument('--max_session', type=int, default=5)
+    parser.add_argument('--broker_registration_key', type=str, default='',
+                        help='shared key used only for first-time broker client registration')
     parser.add_argument('--listenport', type=int, default=8010,
                         help="web listen port")
 

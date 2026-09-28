@@ -61,6 +61,23 @@ def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
             }
         )
 
+    async def register_client(request):
+        try:
+            payload = await _body(request)
+            profile, stream_token = service.register_client(
+                str(payload.get("client_id", "")),
+                str(payload.get("registration_key", "")),
+            )
+            result = service.profile_view(profile)
+            result["stream_token"] = stream_token
+            return _json(result, status=201)
+        except PermissionError as exc:
+            return _error(exc, status=403)
+        except FileExistsError as exc:
+            return _error(exc, status=409)
+        except Exception as exc:
+            return _error(exc)
+
     async def list_clients(request):
         return _json({"clients": service.list_profiles()})
 
@@ -238,6 +255,7 @@ def setup_broker_routes(app: web.Application, service: BrokerService) -> None:
             broadcast.unsubscribe(subscriber)
         return response
 
+    app.router.add_post("/api/v1/register", register_client)
     app.router.add_get("/api/v1/assets", list_assets)
     app.router.add_get("/api/v1/clients", list_clients)
     app.router.add_get("/api/v1/clients/{client_id}", get_client)

@@ -50,6 +50,7 @@ $env:LIVESTREAM_API_TOKEN="THAY_BANG_TOKEN_DAI_NGAU_NHIEN"
 powershell -ExecutionPolicy Bypass -File .\scripts\run_queue_server_windows.ps1 `
   -Model way2lip `
   -DefaultAvatarId host01 `
+  -RegistrationKey "KHOA_DANG_KY_CLIENT_DAI_IT_NHAT_24_KY_TU" `
   -MaxClients 4 `
   -BatchSize 4 `
   -ListenPort 8010
@@ -104,7 +105,10 @@ Không cần tự nhập transcript; server tự chuẩn hóa và chép lời ti
 Lần đầu server tải PhoWhisper-medium. Nếu đã có transcript chính xác, truyền
 thêm `--text "Nội dung chính xác trong file WAV."` để bỏ qua ASR.
 
-## 5. Gán avatar và voice cho từng client
+## 5. Quản trị client thủ công (tùy chọn)
+
+Thông thường client tự chọn ID và tự đăng ký bằng `registration_key`. Các lệnh
+dưới đây chỉ dùng khi quản trị viên muốn tạo/gán profile thủ công.
 
 ```powershell
 .\.venv\Scripts\python.exe .\tools\broker_admin.py register-client shop-lan `
@@ -173,13 +177,14 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 notepad .\config.json
 ```
 
-Điền thông tin riêng được server cấp:
+Nhập địa chỉ server, khóa đăng ký do quản trị cấp và tự chọn ID chưa được dùng:
 
 ```json
 {
   "server_url": "http://IP_GPU_SERVER:8010",
   "client_id": "shop-lan",
-  "stream_token": "TOKEN_RIENG_CUA_SHOP_LAN",
+  "registration_key": "KHOA_DANG_KY_CLIENT_DAI_IT_NHAT_24_KY_TU",
+  "stream_token": "",
   "udp_port": 23000,
   "reconnect_delay": 2.0
 }
@@ -188,12 +193,15 @@ notepad .\config.json
 Khởi động:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run.ps1
+powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
+
+Lần đầu, client đăng ký `client_id`, tự ghi token riêng và xóa khóa đăng ký khỏi
+`config.json`. Nếu ID đã tồn tại, người dùng phải chọn ID khác.
 
 ### Client tự tạo avatar và voice
 
-Trước tiên dừng `run.ps1`; server không thay tài nguyên khi OBS đang nhận luồng.
+Trước tiên dừng `start.ps1`; server không thay tài nguyên khi OBS đang nhận luồng.
 
 Tạo avatar từ video tối đa 500 MB:
 
@@ -218,8 +226,8 @@ powershell -ExecutionPolicy Bypass -File .\create_voice.ps1 `
 ```
 
 Hai lệnh dùng `stream_token` trong `config.json`, chờ hàng đợi chuẩn bị xong và
-tự gán tài nguyên mới vào profile. Client không thể đặt ID tùy ý hoặc sửa tài
-nguyên của client khác. Khi hoàn tất, chạy lại `run.ps1`.
+tự gán tài nguyên mới vào profile. Client được tự chọn ID khi đăng ký nhưng
+không thể sửa tài nguyên của client khác. Khi hoàn tất, chạy lại `start.ps1`.
 
 Trạng thái tác vụ tài nguyên: `uploading`, `queued`, `waiting_gpu`, `running`,
 `completed` hoặc `failed`. Hàng đợi tài nguyên và hàng đợi phát lời dùng chung
@@ -273,6 +281,7 @@ Authorization: Bearer <LIVESTREAM_API_TOKEN>
 
 | Method | Endpoint | Chức năng |
 |---|---|---|
+| POST | `/api/v1/register` | Client tự chọn ID và đăng ký lần đầu |
 | GET | `/api/v1/assets` | Liệt kê avatar và voice |
 | PUT | `/api/v1/clients/{client_id}` | Gán avatar/voice cho client |
 | GET | `/api/v1/clients` | Liệt kê client profile |

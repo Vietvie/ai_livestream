@@ -29,18 +29,9 @@ $ApiToken = [string](Get-ConfigValue $Settings "api_token" "")
 if ($ApiToken.Length -lt 24 -or $ApiToken.StartsWith("THAY_BANG")) {
     throw "Set api_token in server-config.json to a random value of at least 24 characters."
 }
-if ($null -eq $Settings.clients -or $Settings.clients.Count -lt 1) {
-    throw "server-config.json must contain at least one client."
-}
-foreach ($Client in $Settings.clients) {
-    $ClientId = [string]$Client.client_id
-    $ClientToken = [string]$Client.stream_token
-    if (-not $ClientId) {
-        throw "Every client in server-config.json must have client_id."
-    }
-    if ($ClientToken.Length -lt 24 -or $ClientToken.StartsWith("THAY_BANG")) {
-        throw "stream_token for client '$ClientId' must be changed and contain at least 24 characters."
-    }
+$RegistrationKey = [string](Get-ConfigValue $Settings "client_registration_key" "")
+if ($RegistrationKey.Length -lt 24 -or $RegistrationKey.StartsWith("THAY_BANG")) {
+    throw "Set client_registration_key in server-config.json to a random value of at least 24 characters."
 }
 $Model = ([string](Get-ConfigValue $Settings "model" "wav2lip")).ToLowerInvariant()
 if ($Model -notin @("wav2lip", "way2lip", "musetalk")) {
@@ -112,11 +103,6 @@ if (-not $AvatarReady) {
     }
 }
 
-& $Python tools\apply_server_config.py --config $ConfigPath
-if ($LASTEXITCODE -ne 0) {
-    throw "Client configuration failed with code $LASTEXITCODE"
-}
-
 Write-Host "Starting GPU queue server with one command configuration..."
 & (Join-Path $ProjectDir "scripts\run_queue_server_windows.ps1") `
     -Model $Model `
@@ -124,6 +110,7 @@ Write-Host "Starting GPU queue server with one command configuration..."
     -MaxClients $MaxClients `
     -ListenPort $ListenPort `
     -BatchSize $BatchSize `
+    -RegistrationKey $RegistrationKey `
     -VideoEncoder $VideoEncoder `
     -OmniVoiceNumStep $OmniVoiceNumStep
 

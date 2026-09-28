@@ -37,6 +37,65 @@ def _setting(cli_value, config: dict, key: str, env_name: str, default=None):
     return config.get(key, default)
 
 
+def _register_client(
+    server: str,
+    client_id: str,
+    registration_key: str,
+    config_path: Path,
+    config: dict,
+) -> str:
+    """Register a client-selected ID once and persist its private token."""
+    if not registration_key:
+        raise ValueError(
+            "stream_token is empty. Set registration_key in config.json for "
+            "first-time registration."
+        )
+    url = f"{server.rstrip('/')}/api/v1/register"
+    try:
+        response = requests.post(
+            url,
+            json={
+                "client_id": client_id,
+                "registration_key": registration_key,
+            },
+            timeout=30,
+        )
+        payload = response.json()
+    except requests.RequestException as exc:
+        raise ValueError(f"Cannot register with GPU server: {exc}") from exc
+    except Exception as exc:
+        raise ValueError(
+            "GPU server returned an invalid registration response"
+        ) from exc
+    if response.status_code >= 400 or payload.get("code") != 0:
+        raise ValueError(
+            payload.get("msg")
+            or f"Registration failed: HTTP {response.status_code}"
+        )
+    token = str((payload.get("data") or {}).get("stream_token", "")).strip()
+    if not token:
+        raise ValueError("GPU server did not return a client stream token")
+
+    config["server_url"] = server
+    config["client_id"] = client_id
+    # The shared key is needed only once. Do not retain it on the client after
+    # the server has issued this client's private token.
+    config["registration_key"] = ""
+    config["stream_token"] = token
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = config_path.with_suffix(config_path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(config_path)
+    print(
+        f"Registered new client ID '{client_id}'. Private token saved and "
+        "registration key removed from config.json."
+    )
+    return token
+
+
 def _stop_process(process: subprocess.Popen | None) -> None:
     if process is None:
         return
@@ -62,6 +121,7 @@ def main() -> int:
     parser.add_argument("--server")
     parser.add_argument("--client-id")
     parser.add_argument("--token")
+    parser.add_argument("--registration-key")
     parser.add_argument("--udp-port", type=int)
     parser.add_argument(
         "--obs-url",
@@ -70,6 +130,7 @@ def main() -> int:
     parser.add_argument("--reconnect-delay", type=float)
     args = parser.parse_args()
 
+    config_path = Path(args.config).expanduser().resolve()
     try:
         config = _load_config(args.config)
     except ValueError as exc:
@@ -96,6 +157,15 @@ def main() -> int:
             "",
         )
     ).strip()
+    registration_key = str(
+        _setting(
+            args.registration_key,
+            config,
+            "registration_key",
+            "LIVESTREAM_REGISTRATION_KEY",
+            "",
+        )
+    ).strip()
     udp_port = int(
         _setting(args.udp_port, config, "udp_port", "LIVESTREAM_UDP_PORT", 23000)
     )
@@ -112,7 +182,16 @@ def main() -> int:
     if not client_id:
         parser.error("Set client_id in config.json or pass --client-id")
     if not token:
-        parser.error("Set stream_token in config.json or pass --token")
+        try:
+            token = _register_client(
+                server,
+                client_id,
+                registration_key,
+                config_path,
+                config,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
     if not 1 <= udp_port <= 65535:
         parser.error("udp_port must be between 1 and 65535")
 

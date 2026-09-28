@@ -286,7 +286,12 @@ def main():
         from server.broker_routes import setup_broker_routes
         from server.broker_service import BrokerService
 
-        broker_service = BrokerService(Path.cwd(), avatar_model=opt.model)
+        broker_service = BrokerService(
+            Path.cwd(),
+            avatar_model=opt.model,
+            default_avatar_id=opt.avatar_id,
+            registration_key=opt.broker_registration_key,
+        )
         appasync["broker_service"] = broker_service
         setup_broker_routes(appasync, broker_service)
 

@@ -43,6 +43,10 @@ def setup_livestream_routes(app, orchestrator):
     async def protect_upstream_control_api(request, handler):
         if request.method == "OPTIONS":
             return await handler(request)
+        # A new OBS client authenticates this endpoint with the separate,
+        # limited registration key and chooses its own client_id.
+        if request.path == "/api/v1/register":
+            return await handler(request)
         # Stream and self-service assets use a per-client token instead of the
         # administrator token. Their exact handlers enforce client ownership.
         client_scoped = request.path.startswith("/api/v1/clients/") and (
