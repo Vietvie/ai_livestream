@@ -38,4 +38,4 @@ if (-not (Test-Path -LiteralPath $Config -PathType Leaf)) {
 }
 
 Write-Host "OBS Client installation completed."
-Write-Host "Next: edit config.json, then run .\run.ps1"
+Write-Host "Configuration file: .\config.json"

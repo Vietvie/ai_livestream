@@ -163,7 +163,7 @@ def main() -> int:
             server, client_id, token, str(job["job_id"]), args.timeout
         )
         print(
-            "Completed. You can now start run.ps1; the server profile was "
+            "Completed. You can now start start.ps1; the server profile was "
             f"updated with the new {args.command}."
         )
     return 0

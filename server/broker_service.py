@@ -234,6 +234,27 @@ class BrokerService:
             raise PermissionError("Invalid stream token for this client")
         return profile
 
+    def provision_profile(
+        self,
+        client_id: str,
+        avatar_id: str,
+        voice_id: str,
+        stream_token: str,
+    ) -> ClientProfile:
+        """Create/update a client from the local server bootstrap config."""
+        token = str(stream_token or "").strip()
+        if len(token) < 24:
+            raise ValueError(
+                f"stream_token for {client_id} must contain at least 24 characters"
+            )
+        profile, _ = self.upsert_profile(client_id, avatar_id, voice_id)
+        profile.stream_token_hash = hashlib.sha256(
+            token.encode("utf-8")
+        ).hexdigest()
+        profile.updated_at = time.time()
+        self._save_profiles()
+        return profile
+
     @staticmethod
     def asset_job_view(job: AssetJob) -> dict:
         return {

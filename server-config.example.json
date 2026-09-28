@@ -1,0 +1,18 @@
+{
+  "api_token": "THAY_BANG_TOKEN_QUAN_TRI_DAI_VA_NGAU_NHIEN",
+  "model": "wav2lip",
+  "avatar_video": "avatar.mp4",
+  "default_avatar_id": "host01",
+  "listen_port": 8010,
+  "max_clients": 2,
+  "batch_size": 4,
+  "video_encoder": "h264_nvenc",
+  "omnivoice_num_step": 16,
+  "clients": [
+    {
+      "client_id": "client01",
+      "stream_token": "THAY_BANG_TOKEN_RIENG_CUA_CLIENT_IT_NHAT_24_KY_TU",
+      "voice_id": ""
+    }
+  ]
+}

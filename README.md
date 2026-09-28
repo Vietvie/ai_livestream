@@ -86,6 +86,9 @@ Linux CUDA 环境搭建参考: <https://zhuanlan.zhihu.com/p/674972886>
 
 ## 2. 快速开始
 
+四步式 Windows GPU Server + OBS Client 快速安装：
+[docs/QUICKSTART_VI.md](docs/QUICKSTART_VI.md)
+
 多客户端 GPU Server、独立 avatar/voice、FIFO 队列和独立 OBS Client 源码：
 [docs/SERVER_CLIENT_VI.md](docs/SERVER_CLIENT_VI.md)
 

@@ -1,5 +1,8 @@
 # Mô hình GPU Server – OBS Client đa avatar, đa voice
 
+Hướng dẫn cài nhanh chỉ 4 bước: [QUICKSTART_VI.md](QUICKSTART_VI.md). Tài liệu
+này dành cho cấu hình nâng cao và API.
+
 ## 1. Kiến trúc
 
 ```text

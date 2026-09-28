@@ -14,6 +14,7 @@ CLIENT_FILES = (
     "requirements.txt",
     "config.example.json",
     "install.ps1",
+    "start.ps1",
     "run.ps1",
     "create_avatar.ps1",
     "create_voice.ps1",

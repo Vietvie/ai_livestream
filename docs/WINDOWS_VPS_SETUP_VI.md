@@ -1,5 +1,9 @@
 # Cài đặt AI Livestream trên VPS Windows RTX 5060 Ti
 
+Nếu chỉ cần cài và chạy, dùng hướng dẫn 4 bước tại
+[QUICKSTART_VI.md](QUICKSTART_VI.md). Tài liệu này là phần tham khảo chi tiết
+khi cần kiểm thử hoặc xử lý lỗi.
+
 Nếu triển khai một GPU Server phục vụ nhiều OBS Client, nhiều avatar và nhiều
 voice riêng, xem [SERVER_CLIENT_VI.md](SERVER_CLIENT_VI.md).
 

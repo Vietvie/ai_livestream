@@ -5,6 +5,7 @@ build/
 /client/.venv/
 /client/bin/
 /client/config.json
+/server-config.json
 bin/
 output/
 *.egg-info/

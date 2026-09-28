@@ -10,10 +10,10 @@ Phần mềm được phân phối theo giấy phép Apache 2.0 trong file `LICE
 
 Yêu cầu: Python 3.12 và OBS Studio.
 
-Mở PowerShell trong thư mục này:
+Tạo config trong thư mục này:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+Copy-Item .\config.example.json .\config.json
 notepad .\config.json
 ```
 
@@ -29,10 +29,10 @@ Sửa ba giá trị do quản trị server cấp:
 }
 ```
 
-Chạy client:
+Chạy client bằng một lệnh. Lần đầu script tự cài môi trường nhẹ và FFmpeg:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
 ## Tự tạo avatar riêng
@@ -67,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File .\create_voice.ps1 `
   -Text "Nội dung chính xác được nói trong file."
 ```
 
-Sau khi avatar/voice báo `completed`, chạy lại `run.ps1`. Nếu dùng `--no-wait`,
+Sau khi avatar/voice báo `completed`, chạy lại `start.ps1`. Nếu dùng `--no-wait`,
 kiểm tra sau bằng:
 
 ```powershell
