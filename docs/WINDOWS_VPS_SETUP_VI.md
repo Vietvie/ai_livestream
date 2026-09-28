@@ -266,7 +266,64 @@ Tất cả phải trả về `True`.
 
 ## 9. Chạy thử TTS và lip-sync thành MP4
 
-Trong PowerShell thứ nhất:
+Chỉ chạy một backend tại một thời điểm. Sau khi kiểm tra Wav2Lip, nhấn `Ctrl+C`
+để dừng server trước khi chuyển sang MuseTalk; cả hai cùng dùng port `8010`.
+
+### 9.1. Kiểm thử Wav2Lip/Way2Lip
+
+Trong PowerShell thứ nhất, chạy server Wav2Lip với avatar `host01` đã tạo ở
+bước 8.1:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+$env:PYTHONUTF8="1"
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+
+.\.venv\Scripts\python.exe app.py `
+  --config config.yaml `
+  --transport null `
+  --model way2lip `
+  --avatar_id host01 `
+  --batch_size 8 `
+  --max_session 1 `
+  --tts omnivoice
+```
+
+`way2lip` là alias và sẽ được chuyển nội bộ thành `wav2lip`. Lần chạy đầu server
+tự tải `models\wav2lip.pth`; lần nhận câu nói đầu tiên OmniVoice tự tải model
+tiếng Việt. Chờ log có các dòng tương đương:
+
+```text
+Using cuda for inference
+Load checkpoint from: ...wav2lip.pth
+OmniVoice ready
+start inference
+start http server
+```
+
+Trong PowerShell thứ hai, tạo MP4 Wav2Lip:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:LIVESTREAM_API_TOKEN="local-test-token"
+$env:PYTHONUTF8="1"
+
+.\.venv\Scripts\python.exe .\tools\render_lipsync_video.py `
+  "Xin chào, đây là video thử nghiệm Wav2Lip bằng tiếng Việt." `
+  --output .\output\wav2lip-test.mp4
+```
+
+Mở kết quả Wav2Lip:
+
+```powershell
+Start-Process .\output\wav2lip-test.mp4
+```
+
+### 9.2. Kiểm thử MuseTalk
+
+Dừng server Wav2Lip bằng `Ctrl+C`. Trong PowerShell thứ nhất, chạy MuseTalk với
+avatar `host01_muse_fan` đã tạo ở bước 8.2:
 
 ```powershell
 cd C:\AI_LIVESTREAM
@@ -284,17 +341,8 @@ $env:LIVESTREAM_API_TOKEN="local-test-token"
   --tts omnivoice
 ```
 
-Lần đầu server nhận câu nói, OmniVoice sẽ tự tải model tiếng Việt. Chờ log có
-các dòng tương đương:
-
-```text
-Using cuda for inference
-OmniVoice ready
-start inference
-start http server
-```
-
-Trong PowerShell thứ hai:
+Chờ log có `Using cuda for inference`, `OmniVoice ready`, `start inference` và
+`start http server`. Trong PowerShell thứ hai, tạo MP4 MuseTalk:
 
 ```powershell
 cd C:\AI_LIVESTREAM
@@ -302,11 +350,11 @@ $env:LIVESTREAM_API_TOKEN="local-test-token"
 $env:PYTHONUTF8="1"
 
 .\.venv\Scripts\python.exe .\tools\render_lipsync_video.py `
-  "Xin chào, đây là video thử nghiệm hệ thống livestream trí tuệ nhân tạo bằng tiếng Việt." `
+  "Xin chào, đây là video thử nghiệm MuseTalk bằng tiếng Việt." `
   --output .\output\musetalk-test.mp4
 ```
 
-Mở kết quả:
+Mở kết quả MuseTalk:
 
 ```powershell
 Start-Process .\output\musetalk-test.mp4
