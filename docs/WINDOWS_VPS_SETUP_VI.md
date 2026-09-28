@@ -86,7 +86,7 @@ Kiểm tra phiên bản source:
 git log -1 --oneline
 ```
 
-Source phải chứa commit `d0c6893` hoặc commit mới hơn.
+Source phải chứa commit `6d62d06` hoặc commit mới hơn.
 
 ## 5. Cài môi trường Python và PyTorch
 
@@ -181,6 +181,56 @@ Kiểm tra:
 ```powershell
 Test-Path C:\AI_LIVESTREAM\avatar.mp4
 ```
+
+Chọn **một** trong hai backend bên dưới. Không dùng chung một `avatar-id` cho
+MuseTalk và Wav2Lip vì cấu trúc dữ liệu được tạo ra khác nhau.
+
+### 8.1. Chuẩn bị avatar Wav2Lip/Way2Lip
+
+`way2lip` là alias của backend `wav2lip`; cả hai sử dụng cùng avatar. Tạo avatar
+Wav2Lip cho video dọc:
+
+```powershell
+cd C:\AI_LIVESTREAM
+$env:PATH="$PWD\bin;$env:PATH"
+
+.\.venv\Scripts\python.exe .\tools\prepare_avatar.py .\avatar.mp4 `
+  --avatar-id host01 `
+  --model wav2lip
+```
+
+Nếu video ngang 16:9:
+
+```powershell
+.\.venv\Scripts\python.exe .\tools\prepare_avatar.py .\avatar.mp4 `
+  --avatar-id host01 `
+  --model wav2lip `
+  --width 1280 `
+  --height 720
+```
+
+Kiểm tra kết quả Wav2Lip:
+
+```powershell
+Test-Path .\data\avatars\host01\coords.pkl
+Test-Path .\data\avatars\host01\full_imgs
+Test-Path .\data\avatars\host01\face_imgs
+(Get-ChildItem .\data\avatars\host01\full_imgs -File).Count -gt 0
+(Get-ChildItem .\data\avatars\host01\face_imgs -File).Count -gt 0
+```
+
+Tất cả phải trả về `True`. Checkpoint `models\wav2lip.pth` chưa cần có ở bước
+này; server sẽ tự tải và kiểm tra checkpoint khi chạy Wav2Lip lần đầu.
+
+Chạy backend này bằng `-Model way2lip -AvatarId host01` hoặc trực tiếp:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_obs_windows.ps1 `
+  -Model way2lip `
+  -AvatarId host01
+```
+
+### 8.2. Chuẩn bị avatar MuseTalk
 
 Tạo avatar MuseTalk cho video dọc. Lần chạy đầu tự tải checkpoint nên có thể mất
 thêm vài phút và cần kết nối Internet tới Hugging Face:
